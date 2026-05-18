@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>3D Escape</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#06061a}
+body{font-family:'Inter','Apple SD Gothic Neo','Noto Sans KR',sans-serif;user-select:none;touch-action:none}
+canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!important}
+#ui{position:fixed;inset:0;pointer-events:none}
+
+/* ── MENU ────────────────────────────────────────── */
+#menu{position:absolute;inset:0;display:flex;flex-direction:column;pointer-events:none;transition:opacity .5s}
+#menu.hidden{opacity:0;pointer-events:none}#menu.hidden *{pointer-events:none!important}
+#menu-top{position:absolute;top:0;left:0;right:0;padding:52px 0 0;text-align:center;pointer-events:none}
+#menu-top h1{color:#fff;font-size:32px;font-weight:900;letter-spacing:5px;text-shadow:0 0 32px rgba(76,201,240,0.7)}
+#menu-top .tag{color:rgba(170,170,220,0.7);font-size:12px;margin-top:6px;letter-spacing:2px}
+#menu-bottom{position:absolute;bottom:0;left:0;right:0;padding:0 28px 44px;display:flex;flex-direction:column;gap:10px;pointer-events:all}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:15px 32px;border-radius:50px;font-size:15px;font-weight:700;cursor:pointer;border:none;outline:none;color:#fff;transition:transform .12s,opacity .12s;width:100%}
+.btn:active{transform:scale(0.96);opacity:0.85}
+.btn-primary{background:linear-gradient(135deg,#4361ee,#4cc9f0);box-shadow:0 0 28px rgba(67,97,238,0.5)}
+.btn-secondary{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);backdrop-filter:blur(8px)}
+.btn-shop{background:linear-gradient(135deg,#f77f00,#d62828);box-shadow:0 0 22px rgba(247,127,0,0.4)}
+.btn-multi{background:linear-gradient(135deg,#7209b7,#f72585);box-shadow:0 0 28px rgba(247,37,133,0.45)}
+.btn-sm{width:auto;padding:11px 24px;font-size:14px}
+
+#coin-pill{position:absolute;top:18px;right:18px;background:rgba(10,10,35,0.8);border:1px solid rgba(255,215,0,0.35);border-radius:50px;padding:8px 16px;display:none;align-items:center;gap:6px;pointer-events:all;font-size:14px;font-weight:700;color:#FFD700;cursor:pointer;backdrop-filter:blur(10px)}
+
+/* ── EXIT ────────────────────────────────────────── */
+#exit-btn{position:absolute;top:18px;left:18px;background:rgba(8,8,28,0.78);border:1px solid rgba(255,255,255,0.14);border-radius:50px;padding:9px 18px;color:rgba(255,255,255,0.85);font-size:13px;font-weight:700;cursor:pointer;pointer-events:all;backdrop-filter:blur(10px);display:none;z-index:50;transition:opacity .15s}
+#exit-btn:active{opacity:0.65}
+
+/* ── HUD ─────────────────────────────────────────── */
+#hud{position:absolute;inset:0;transition:opacity .55s;pointer-events:none;display:none}
+#hud-top{position:absolute;top:0;left:0;right:0;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;padding-left:90px;background:linear-gradient(to bottom,rgba(6,6,26,0.7),transparent)}
+#lives-txt{font-size:18px;letter-spacing:2px}
+#level-txt{color:#5a5aaa;font-size:13px;font-weight:700}
+#coins-txt{color:#FFD700;font-size:13px;font-weight:700}
+#launch-wrap{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);pointer-events:all}
+#launch-btn{padding:15px 48px;border-radius:50px;font-size:16px;font-weight:700;cursor:pointer;border:none;color:#fff;background:linear-gradient(135deg,#4361ee,#4cc9f0);box-shadow:0 0 26px rgba(67,97,238,0.5);display:none;letter-spacing:1px}
+#hint-bar{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);color:rgba(180,180,220,0.6);font-size:12px;white-space:nowrap;opacity:0;transition:opacity .4s;pointer-events:none}
+#blocked-flash{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);color:#ff6b6b;font-size:22px;font-weight:900;opacity:0;transition:opacity .25s;pointer-events:none;text-shadow:0 0 24px rgba(255,80,80,0.9)}
+#tap-restore{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.22);font-size:12px;pointer-events:none;white-space:nowrap}
+#pbar{position:absolute;top:0;left:0;right:0;height:3px}
+#pfill{height:3px;background:linear-gradient(90deg,#4361ee,#4cc9f0);width:0;transition:width .35s}
+
+/* ── WIN / OVER ──────────────────────────────────── */
+.overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:all;background:rgba(0,0,0,0.35)}
+.r-card{background:rgba(8,8,28,0.93);border:1px solid rgba(100,100,220,0.22);border-radius:24px;padding:36px 28px;text-align:center;max-width:320px;width:88%;backdrop-filter:blur(20px)}
+.r-card h2{color:#fff;font-size:23px;font-weight:900;margin-bottom:8px}
+.r-emoji{font-size:54px;margin-bottom:10px}
+.r-stars{font-size:24px;letter-spacing:5px;margin-bottom:6px}
+.r-coins{font-size:28px;font-weight:900;color:#FFD700;margin:10px 0;text-shadow:0 0 18px rgba(255,215,0,0.6)}
+.r-sub{color:#5a5aaa;font-size:13px;line-height:1.7;margin-bottom:20px}
+.r-row{display:flex;gap:10px;justify-content:center}
+
+/* ── SHOP ────────────────────────────────────────── */
+#shop{position:absolute;inset:0;display:none;flex-direction:column;pointer-events:all;background:rgba(4,4,18,0.98);overflow:hidden;z-index:20}
+#shop.on{display:flex}
+#shop-hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 18px 8px;flex-shrink:0}
+#shop-hdr h2{color:#fff;font-size:19px;font-weight:900}
+#shop-coins{color:#FFD700;font-size:15px;font-weight:700}
+#shop-x{background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#shop-tabs{display:flex;gap:8px;padding:0 14px 10px;flex-shrink:0}
+.s-tab{flex:1;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);font-size:13px;font-weight:700;cursor:pointer;color:rgba(255,255,255,0.45);background:transparent;transition:all .2s}
+.s-tab.on{background:rgba(76,201,240,0.18);border-color:rgba(76,201,240,0.4);color:#4CC9F0}
+#shop-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.item-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;padding:4px 14px 36px}
+.item-grid.hidden{display:none}
+.sk{background:rgba(18,18,46,0.85);border:2px solid rgba(70,70,170,0.22);border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;transition:border-color .2s,transform .12s;position:relative}
+.sk.eq{border-color:#4CC9F0;box-shadow:0 0 14px rgba(76,201,240,0.25)}
+.sk.own{border-color:rgba(90,200,90,0.4)}
+.sk:active{transform:scale(0.97)}
+.sk-ico{font-size:34px;margin-bottom:7px;display:block}
+.sk-name{color:#fff;font-size:13px;font-weight:700;margin-bottom:3px}
+.sk-desc{color:#4a4a8a;font-size:10px;margin-bottom:8px;line-height:1.4}
+.sk-price{font-size:12px;font-weight:700}
+.p-free{color:#4CC9F0}.p-cheap{color:#FFD700}.p-exp{color:#f77f00}
+.sk-badge{position:absolute;top:7px;right:7px;border-radius:50px;padding:2px 7px;font-size:9px;font-weight:700}
+.b-eq{background:rgba(76,201,240,0.25);color:#4CC9F0}
+.b-own{background:rgba(90,200,90,0.25);color:#90ee90}
+
+/* ── LEVEL SELECT ────────────────────────────────── */
+#level-select{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  background:rgba(4,4,18,0.98);
+  pointer-events:all;
+  transform:translateX(100%);
+  transition:transform .38s cubic-bezier(0.25,0.46,0.45,0.94);
+  z-index:25;
+  will-change:transform;
+}
+#level-select.open{transform:translateX(0)}
+#ls-hdr{display:flex;align-items:center;gap:12px;padding:20px 18px 10px;flex-shrink:0}
+#ls-back{background:rgba(255,255,255,0.1);border:none;color:#fff;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+#ls-hdr h2{color:#fff;font-size:18px;font-weight:900;flex:1}
+#ls-stat{color:#5a5aaa;font-size:12px;font-weight:700;white-space:nowrap}
+#ls-search-row{display:flex;align-items:center;gap:8px;padding:0 14px 10px;flex-shrink:0}
+#ls-search{
+  flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
+  border-radius:12px;padding:10px 14px;color:#fff;font-size:14px;outline:none;
+  -webkit-appearance:none;
+}
+#ls-search::placeholder{color:rgba(255,255,255,0.3)}
+#ls-search:focus{border-color:rgba(76,201,240,0.4);background:rgba(76,201,240,0.06)}
+#ls-sclear{background:none;border:none;color:rgba(255,255,255,0.3);font-size:16px;cursor:pointer;padding:4px 6px;flex-shrink:0;display:none}
+#ls-tabs{display:flex;gap:7px;padding:0 14px 10px;flex-shrink:0}
+.ls-tab{flex:1;padding:9px 6px;border-radius:11px;border:1px solid rgba(255,255,255,0.1);font-size:12px;font-weight:700;cursor:pointer;color:rgba(255,255,255,0.4);background:transparent;transition:all .2s;white-space:nowrap}
+.ls-tab.on{background:rgba(76,201,240,0.18);border-color:rgba(76,201,240,0.4);color:#4CC9F0}
+#ls-empty{display:none;flex-direction:column;align-items:center;justify-content:center;flex:1;color:rgba(255,255,255,0.25);font-size:14px;gap:12px;padding-bottom:60px}
+#ls-empty .em-ico{font-size:48px;opacity:0.5}
+#ls-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#ls-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 12px 40px;}
+.lv-card{background:rgba(18,18,46,0.9);border:2px solid rgba(70,70,170,0.2);border-radius:14px;padding:14px 6px 12px;text-align:center;cursor:pointer;transition:transform .12s,border-color .2s;position:relative;min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;}
+.lv-card.lvc-cleared{background:rgba(25,18,0,0.9);border-color:rgba(255,200,0,0.45)}
+.lv-card.lvc-cleared:active{transform:scale(0.94)}
+.lv-card.lvc-avail{border-color:rgba(67,97,238,0.4)}
+.lv-card.lvc-avail:active{transform:scale(0.94)}
+.lv-card.lvc-locked{opacity:0.32;cursor:default}
+.lvc-top{height:18px;display:flex;align-items:center;justify-content:center;font-size:12px;letter-spacing:2px}
+.lvc-num{font-size:26px;font-weight:900;color:#fff;line-height:1}
+.lvc-meta{color:#4a4a7a;font-size:10px;margin-top:2px}
+.lvc-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:50px;margin-top:6px}
+.lvcb-cl{background:rgba(255,200,0,0.18);color:#FFD700}
+.lvcb-av{background:rgba(67,97,238,0.18);color:#74b3ff}
+.lvcb-lk{background:rgba(100,100,100,0.15);color:#555}
+.lvc-best{position:absolute;top:6px;right:6px;font-size:9px;background:rgba(255,200,0,0.22);color:#FFD700;border-radius:50px;padding:2px 5px;font-weight:700;display:none}
+.lv-card.lvc-cleared .lvc-best{display:block}
+#ls-swipe-hint{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:rgba(76,201,240,0.4);font-size:22px;pointer-events:none;animation:swipeHint 2s ease-in-out infinite;opacity:0}
+@keyframes swipeHint{0%,100%{opacity:0;transform:translateY(-50%) translateX(0)}30%{opacity:1;transform:translateY(-50%) translateX(8px)}70%{opacity:0.5;transform:translateY(-50%) translateX(4px)}}
+
+/* popup */
+.popup{position:fixed;pointer-events:none;font-size:24px;font-weight:900;text-shadow:0 0 18px currentColor;transition:transform 1.3s ease-out,opacity 1.3s ease-out;z-index:9999}
+
+/* ── MULTIPLAYER ──────────────────────────────────── */
+#multi-screen{
+  position:absolute;inset:0;display:none;flex-direction:column;
+  background:rgba(4,4,18,0.98);pointer-events:all;z-index:30;
+  align-items:center;justify-content:center;
+}
+#multi-screen.on{display:flex}
+.multi-card{
+  background:rgba(14,10,40,0.95);border:1px solid rgba(247,37,133,0.3);
+  border-radius:28px;padding:36px 28px;width:88%;max-width:340px;
+  text-align:center;backdrop-filter:blur(20px);
+  box-shadow:0 0 40px rgba(247,37,133,0.18);
+}
+.multi-card h2{color:#fff;font-size:22px;font-weight:900;margin-bottom:6px}
+.multi-card .sub{color:rgba(200,160,240,0.7);font-size:13px;margin-bottom:24px;line-height:1.5}
+.multi-icon{font-size:52px;margin-bottom:12px}
+.code-input-row{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
+.code-digit{
+  width:52px;height:64px;border-radius:14px;
+  background:rgba(255,255,255,0.07);border:2px solid rgba(247,37,133,0.3);
+  color:#fff;font-size:28px;font-weight:900;text-align:center;outline:none;
+  caret-color:#f72585;transition:border-color .2s;
+  -webkit-appearance:none;
+}
+.code-digit:focus{border-color:#f72585;background:rgba(247,37,133,0.1);}
+.code-digit::placeholder{color:rgba(255,255,255,0.15)}
+#multi-code-display{
+  font-size:38px;font-weight:900;letter-spacing:10px;color:#f72585;
+  text-shadow:0 0 20px rgba(247,37,133,0.6);margin:10px 0 20px;
+  font-variant-numeric:tabular-nums;
+}
+#multi-status{color:rgba(200,180,240,0.75);font-size:14px;margin-bottom:20px;min-height:22px}
+.multi-wait-dots span{display:inline-block;animation:dotBounce 1.2s ease-in-out infinite}
+.multi-wait-dots span:nth-child(2){animation-delay:.2s}
+.multi-wait-dots span:nth-child(3){animation-delay:.4s}
+@keyframes dotBounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+#multi-countdown{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);z-index:60;pointer-events:none;
+}
+#multi-countdown.on{display:flex}
+#countdown-num{
+  font-size:120px;font-weight:900;color:#fff;
+  text-shadow:0 0 60px rgba(247,37,133,0.9),0 0 30px rgba(76,201,240,0.7);
+  animation:cntPop .6s ease-out;
+}
+@keyframes cntPop{0%{transform:scale(2.5);opacity:0}60%{transform:scale(0.9)}100%{transform:scale(1);opacity:1}}
+/* Multi HUD overlay */
+#multi-hud{
+  position:absolute;bottom:0;left:0;right:0;pointer-events:none;
+  background:linear-gradient(to top,rgba(6,6,26,0.85),transparent);
+  padding:14px 20px 28px;display:none;
+}
+#multi-hud.on{display:block}
+.multi-player-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.mp-label{font-size:12px;font-weight:700;white-space:nowrap;min-width:52px}
+.mp-label.me{color:#4cc9f0}
+.mp-label.op{color:#f72585}
+.mp-bar-bg{flex:1;height:10px;border-radius:50px;background:rgba(255,255,255,0.1);overflow:hidden}
+.mp-bar-fill{height:100%;border-radius:50px;transition:width .3s;width:0}
+.mp-bar-fill.me{background:linear-gradient(90deg,#4361ee,#4cc9f0)}
+.mp-bar-fill.op{background:linear-gradient(90deg,#7209b7,#f72585)}
+.mp-count{font-size:11px;font-weight:700;min-width:36px;text-align:right}
+.mp-count.me{color:#4cc9f0}
+.mp-count.op{color:#f72585}
+/* Multi result */
+#multi-result{position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:all;background:rgba(0,0,0,0.5);z-index:55}
+#multi-result.on{display:flex}
+.mr-card{
+  background:rgba(8,6,28,0.96);border-radius:28px;padding:38px 30px;
+  text-align:center;max-width:320px;width:88%;backdrop-filter:blur(24px);
+  border:1px solid rgba(247,37,133,0.25);
+}
+.mr-card h2{color:#fff;font-size:26px;font-weight:900;margin-bottom:6px}
+.mr-emoji{font-size:60px;margin-bottom:14px}
+.mr-detail{color:#5a5aaa;font-size:13px;margin-bottom:24px;line-height:1.7}
+.mr-stat-row{display:flex;justify-content:space-around;margin-bottom:22px}
+.mr-stat{text-align:center}
+.mr-stat-val{font-size:22px;font-weight:900;color:#fff}
+.mr-stat-lbl{font-size:11px;color:#5a5aaa;margin-top:2px}
+
+/* Difficulty badge on level cards */
+.diff-badge{
+  position:absolute;top:6px;left:6px;font-size:8px;font-weight:700;
+  padding:2px 5px;border-radius:50px;
+}
+.diff-easy{background:rgba(76,201,240,0.2);color:#4cc9f0}
+.diff-med{background:rgba(255,215,0,0.2);color:#FFD700}
+.diff-hard{background:rgba(247,127,0,0.2);color:#f77f00}
+.diff-ext{background:rgba(214,40,40,0.2);color:#ff6b6b}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+
+  <!-- EXIT -->
+  <div id="exit-btn">← 메뉴</div>
+
+  <!-- MENU -->
+  <div id="menu">
+    <div id="menu-top">
+      <h1>3D ESCAPE</h1>
+      <div class="tag">PUZZLE GAME</div>
+    </div>
+    <div id="menu-bottom">
+      <button class="btn btn-primary" id="btn-start">▶ 게임 시작</button>
+      <button class="btn btn-secondary" id="btn-cont" style="display:none">↩ 이어하기</button>
+      <button class="btn btn-multi" id="btn-multi">⚡ 멀티플레이</button>
+      <button class="btn btn-shop" id="btn-shop">🛒 상점</button>
+    </div>
+  </div>
+
+  <!-- COIN -->
+  <div id="coin-pill">💰 <span id="coin-val">0</span></div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div id="pbar"><div id="pfill"></div></div>
+    <div id="hud-top">
+      <div id="lives-txt"></div>
+      <div id="level-txt"></div>
+      <div id="coins-txt">💰 <span id="hud-coin-val">0</span></div>
+    </div>
+    <div id="blocked-flash">막혔습니다! 💥</div>
+    <div id="hint-bar">탭: 선택 · 더블탭 또는 버튼: 발사</div>
+    <div id="tap-restore">화면을 탭하면 UI 표시</div>
+    <div id="launch-wrap"><button id="launch-btn">탈출! 🚀</button></div>
+  </div>
+
+  <!-- WIN -->
+  <div class="overlay" id="win-ov">
+    <div class="r-card">
+      <div class="r-emoji">🎉</div>
+      <h2>레벨 클리어!</h2>
+      <div class="r-stars" id="w-stars"></div>
+      <div class="r-coins" id="w-coins"></div>
+      <p class="r-sub" id="w-sub"></p>
+      <div class="r-row">
+        <button class="btn btn-primary btn-sm" id="btn-next">다음 ▶</button>
+        <button class="btn btn-secondary btn-sm" id="btn-m1">메뉴</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVER -->
+  <div class="overlay" id="over-ov">
+    <div class="r-card">
+      <div class="r-emoji">💀</div>
+      <h2>게임 오버</h2>
+      <p class="r-sub">생명을 모두 잃었습니다.<br>다시 도전해보세요!</p>
+      <div class="r-row">
+        <button class="btn btn-primary btn-sm" id="btn-retry">다시 시도</button>
+        <button class="btn btn-secondary btn-sm" id="btn-m2">메뉴</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOP -->
+  <div id="shop">
+    <div id="shop-hdr">
+      <h2>🛒 상점</h2>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div id="shop-coins">💰 <span id="shop-coin-val">0</span></div>
+        <button id="shop-x">✕</button>
+      </div>
+    </div>
+    <div id="shop-tabs">
+      <button class="s-tab on" id="tab-skin" onclick="setShopTab('skin')">🏹 스킨</button>
+      <button class="s-tab"    id="tab-map"  onclick="setShopTab('map')">🗺️ 맵</button>
+    </div>
+    <div id="shop-body">
+      <div class="item-grid" id="skin-grid"></div>
+      <div class="item-grid hidden" id="map-grid"></div>
+    </div>
+  </div>
+
+  <!-- LEVEL SELECT -->
+  <div id="level-select">
+    <div id="ls-swipe-hint">›</div>
+    <div id="ls-hdr">
+      <button id="ls-back">←</button>
+      <h2>레벨 선택</h2>
+      <div id="ls-stat">0 / 0 클리어</div>
+    </div>
+    <div id="ls-search-row">
+      <input id="ls-search" type="text" inputmode="numeric" placeholder="🔍 레벨 번호 검색…">
+      <button id="ls-sclear">✕</button>
+    </div>
+    <div id="ls-tabs">
+      <button class="ls-tab on" id="lst-all"   onclick="setLsTab('all')">전체</button>
+      <button class="ls-tab"    id="lst-clear" onclick="setLsTab('clear')">✅ 클리어</button>
+      <button class="ls-tab"    id="lst-todo"  onclick="setLsTab('todo')">🔥 미완성</button>
+    </div>
+    <div id="ls-scroll">
+      <div id="ls-empty">
+        <div class="em-ico">🔍</div>
+        <div>해당하는 레벨이 없어요</div>
+      </div>
+      <div id="ls-grid"></div>
+    </div>
+  </div>
+
+  <!-- MULTIPLAYER SCREEN -->
+  <div id="multi-screen">
+    <div class="multi-card" id="multi-entry-card">
+      <div class="multi-icon">⚡</div>
+      <h2>멀티플레이</h2>
+      <p class="sub">4자리 코드를 공유해서<br>친구와 함께 경쟁하세요!</p>
+      <div class="code-input-row">
+        <input class="code-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" id="cd0" placeholder="·">
+        <input class="code-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" id="cd1" placeholder="·">
+        <input class="code-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" id="cd2" placeholder="·">
+        <input class="code-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" id="cd3" placeholder="·">
+      </div>
+      <div style="margin-bottom:14px;text-align:left">
+        <label style="color:rgba(200,160,240,0.65);font-size:11px;display:block;margin-bottom:5px;letter-spacing:.5px">서버 주소 (자동 감지)</label>
+        <input id="multi-server-url" type="text" value="wss://three-d-escape-multi-server.onrender.com"
+          style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(247,37,133,0.28);border-radius:10px;padding:10px 12px;color:#fff;font-size:12px;outline:none;caret-color:#f72585">
+      </div>
+      <button class="btn btn-multi" id="multi-join-btn" style="margin-bottom:12px">입장하기</button>
+      <button class="btn btn-secondary btn-sm" id="multi-back-btn" style="width:100%">← 뒤로</button>
+    </div>
+
+    <div class="multi-card" id="multi-lobby-card" style="display:none">
+      <div class="multi-icon" id="multi-lobby-icon">⏳</div>
+      <h2 id="multi-lobby-title">방 생성됨</h2>
+      <p class="sub">코드를 친구와 공유하세요</p>
+      <div id="multi-code-display">----</div>
+      <div id="multi-status">
+        <span class="multi-wait-dots">상대방 기다리는 중<span>.</span><span>.</span><span>.</span></span>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="multi-lobby-back" style="width:100%;margin-top:8px">← 취소</button>
+    </div>
+  </div>
+
+  <!-- COUNTDOWN OVERLAY -->
+  <div id="multi-countdown">
+    <div id="countdown-num">3</div>
+  </div>
+
+  <!-- MULTI HUD (opponent progress bars) -->
+  <div id="multi-hud">
+    <div class="multi-player-row">
+      <div class="mp-label me">나</div>
+      <div class="mp-bar-bg"><div class="mp-bar-fill me" id="mp-my-fill"></div></div>
+      <div class="mp-count me" id="mp-my-count">0/0</div>
+    </div>
+    <div class="multi-player-row">
+      <div class="mp-label op">상대</div>
+      <div class="mp-bar-bg"><div class="mp-bar-fill op" id="mp-op-fill"></div></div>
+      <div class="mp-count op" id="mp-op-count">0/0</div>
+    </div>
+  </div>
+
+  <!-- MULTI RESULT -->
+  <div id="multi-result">
+    <div class="mr-card">
+      <div class="mr-emoji" id="mr-emoji">🏆</div>
+      <h2 id="mr-title">승리!</h2>
+      <div class="mr-stat-row">
+        <div class="mr-stat">
+          <div class="mr-stat-val" id="mr-my-time">--</div>
+          <div class="mr-stat-lbl">내 기록</div>
+        </div>
+        <div class="mr-stat">
+          <div class="mr-stat-val" id="mr-op-time">--</div>
+          <div class="mr-stat-lbl">상대 기록</div>
+        </div>
+      </div>
+      <p class="mr-detail" id="mr-detail"></p>
+      <div class="r-row">
+        <button class="btn btn-multi btn-sm" id="mr-again">다시 대결</button>
+        <button class="btn btn-secondary btn-sm" id="mr-menu">메뉴</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ══════════════════════════════════════════════════
+// SEEDED RANDOM (Mulberry32)
+// ══════════════════════════════════════════════════
+function seededRand(seed){
+  let s=(seed^0xdeadbeef)>>>0;
+  return function(){
+    s=Math.imul(s^(s>>>16),0x45d9f3b)>>>0;
+    s=Math.imul(s^(s>>>16),0x45d9f3b)>>>0;
+    s=(s^(s>>>16))>>>0;
+    return s/0xffffffff;
+  };
+}
+
+// ══════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════
+const GRID=0.65,ESCAPE=14,SPEED=5.5;
+const BR=0.015,BL=0.30,HR=0.088,HH=0.21;
+const DIRS_ALL=['px','nx','py','ny','pz','nz'];
+const DEFAULT_COLORS=['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD',
+  '#98D8C8','#F7DC6F','#BB8FCE','#85C1E9','#F0B27A','#82E0AA',
+  '#F1948A','#AED6F1','#FAD7A0','#D2B4DE','#A2D9CE','#FDFEFE',
+  '#F8C8D4','#C8E6C9','#B3E5FC','#FFE0B2','#E1BEE7','#BBDEFB'];
+const DV={px:new THREE.Vector3(1,0,0),nx:new THREE.Vector3(-1,0,0),
+  py:new THREE.Vector3(0,1,0),ny:new THREE.Vector3(0,-1,0),
+  pz:new THREE.Vector3(0,0,1),nz:new THREE.Vector3(0,0,-1)};
+
+// Difficulty config per level index
+// Grid dimensions for a fully packed (no-gap) layout
+function gridDims(n){
+  // All grids have D>=2 so front/back (pz/nz) arrows always appear
+  if(n<=6)  return[3,1,2];   // 3×1×2 = 6
+  if(n<=9)  return[3,1,3];   // 3×1×3 = 9
+  if(n<=12) return[3,2,2];   // 3×2×2 = 12
+  if(n<=16) return[4,2,2];   // 4×2×2 = 16
+  if(n<=20) return[5,2,2];   // 5×2×2 = 20
+  if(n<=25) return[5,1,5];   // 5×1×5 = 25
+  if(n<=36) return[4,3,3];
+  if(n<=48) return[4,4,3];
+  if(n<=60) return[5,4,3];
+  if(n<=75) return[5,5,3];
+  if(n<=100)return[5,5,4];
+  if(n<=125)return[5,5,5];
+  if(n<=150)return[5,5,6];
+  return[6,6,Math.ceil(n/36)];
+}
+function diffConfig(idx){
+  if(idx<3) return{count:[6,9,12][idx],label:'easy'};
+  if(idx<9) return{count:16+(idx-3)*4,label:'med'};
+  if(idx<21)return{count:36+(idx-9)*6,label:'hard'};
+  return{count:Math.min(108+(idx-21)*8,200),label:'ext'};
+}
+
+// ══════════════════════════════════════════════════
+// PROC GEN (seeded, difficulty-aware)
+// ══════════════════════════════════════════════════
+// Static blocking check using raw position arrays (for level gen)
+function isBlockedByPool(pos,dir,pool){
+  const[ax,ay,az]=pos;
+  return pool.some(([bx,by,bz])=>{
+    if(dir==='px')return by===ay&&bz===az&&bx>ax;
+    if(dir==='nx')return by===ay&&bz===az&&bx<ax;
+    if(dir==='py')return bx===ax&&bz===az&&by>ay;
+    if(dir==='ny')return bx===ax&&bz===az&&by<ay;
+    if(dir==='pz')return bx===ax&&by===ay&&bz>az;
+    if(dir==='nz')return bx===ax&&by===ay&&bz<az;
+    return false;
+  });
+}
+
+function genLevel(idx){
+  const cfg=diffConfig(idx);
+  const{count}=cfg;
+  // All levels use all 6 directions (grids always have D>=2)
+  const dirs=DIRS_ALL;
+  const[W,H,D]=gridDims(count);
+  const offX=Math.floor(W/2),offY=Math.floor(H/2),offZ=Math.floor(D/2);
+
+  // Build all grid positions
+  const positions=[];
+  for(let z=0;z<D;z++)for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    if(positions.length>=count)break;
+    positions.push([x-offX,y-offY,z-offZ]);
+  }
+
+  // ── Removal-order algorithm ──────────────────────────────────────────
+  // For each attempt, assign a random removal order. Arrow at step k gets
+  // a direction NOT blocked by any "future" arrow (order[k+1..N-1]).
+  // This guarantees the sequence order[0]→order[1]→…→order[N-1] is always
+  // a valid solution, making the puzzle solvable.
+  for(let attempt=0;attempt<150;attempt++){
+    const rand=seededRand(idx*7919+13337+attempt*4999);
+    // Fisher-Yates shuffle = removal order
+    const order=[...Array(count).keys()];
+    for(let i=order.length-1;i>0;i--){
+      const j=Math.floor(rand()*(i+1));
+      [order[i],order[j]]=[order[j],order[i]];
+    }
+    const result=new Array(count);
+    let ok=true;
+    for(let k=0;k<count&&ok;k++){
+      const posIdx=order[k];
+      const pos=positions[posIdx];
+      // "Future" positions that haven't escaped yet when it's arrow k's turn
+      const futurePos=order.slice(k+1).map(i=>positions[i]);
+      // Valid dirs: those not blocked by any future arrow
+      const validDirs=dirs.filter(d=>!isBlockedByPool(pos,d,futurePos));
+      if(!validDirs.length){ok=false;break;}
+      result[posIdx]={pos,dir:validDirs[Math.floor(rand()*validDirs.length)]};
+    }
+    if(ok)return result;
+  }
+
+  // ── Guaranteed fallback: each arrow faces its nearest grid boundary ──
+  // Any arrow pointing outward is at worst blocked by arrows closer to
+  // that boundary, which can always escape first → always solvable.
+  const rand2=seededRand(idx*7919+13337);
+  return positions.map(([x,y,z],i)=>{
+    // Distance to each boundary face (in original 0-based coords)
+    const ox=x+offX, oy=y+offY, oz=z+offZ;
+    const dists={px:W-1-ox,nx:ox,py:H-1-oy,ny:oy,pz:D-1-oz,nz:oz};
+    const allowed=dirs.slice().sort((a,b)=>dists[a]-dists[b]);
+    // Pick from the two closest faces (adds variety without breaking solvability)
+    const minD=dists[allowed[0]];
+    const best=allowed.filter(d=>dists[d]<=minD+1);
+    return{pos:[x,y,z],dir:best[Math.floor(rand2()*best.length)]};
+  });
+}
+
+// Seeded multi-level generation from room code
+function genMultiLevel(code){
+  const seed=parseInt(code)*31337+42;
+  const rand=seededRand(seed);
+  const count=12;
+  function bl(a,all){
+    const[ax,ay,az]=a.pos,d=a.dir;
+    return all.some(o=>{
+      if(o===a)return false;const[bx,by,bz]=o.pos;
+      if(d==='px')return by===ay&&bz===az&&bx>ax;if(d==='nx')return by===ay&&bz===az&&bx<ax;
+      if(d==='py')return bx===ax&&bz===az&&by>ay;if(d==='ny')return bx===ax&&bz===az&&by<ay;
+      if(d==='pz')return bx===ax&&by===ay&&bz>az;if(d==='nz')return bx===ax&&by===ay&&bz<az;
+    });
+  }
+  for(let attempt=0;attempt<40;attempt++){
+    const ps=new Set(),lv=[];
+    while(lv.length<count){
+      const x=Math.round((rand()-.5)*6),y=Math.round((rand()-.5)*6),z=Math.round((rand()-.5)*4);
+      const k=`${x},${y},${z}`;if(ps.has(k))continue;
+      ps.add(k);lv.push({pos:[x,y,z],dir:DIRS_ALL[Math.floor(rand()*6)]});
+    }
+    if(lv.filter(a=>!bl(a,lv)).length>=3)return lv;
+  }
+  return [{pos:[0,0,0],dir:'px'},{pos:[1,0,0],dir:'py'},{pos:[0,1,0],dir:'pz'},
+          {pos:[0,0,1],dir:'nx'},{pos:[2,0,0],dir:'py'},{pos:[0,2,0],dir:'px'},
+          {pos:[1,1,0],dir:'nz'},{pos:[2,1,0],dir:'ny'},{pos:[1,2,0],dir:'px'},
+          {pos:[0,1,1],dir:'py'},{pos:[1,0,1],dir:'nz'},{pos:[2,0,1],dir:'py'}];
+}
+
+function getLevel(i){return genLevel(i);}
+function getLevelArrowCount(i){return diffConfig(i).count;}
+
+// ══════════════════════════════════════════════════
+// SKINS
+// ══════════════════════════════════════════════════
+const SKINS=[
+  {id:'default',name:'기본',    desc:'모던 젬 스타일',      price:0,  emoji:'💠',pc:'p-free', r:0.55,m:0.15},
+  {id:'gold',   name:'골드',    desc:'반짝이는 금빛 유광',  price:50, emoji:'✨',pc:'p-cheap',r:0.06,m:0.92,fc:'#FFD700'},
+  {id:'silver', name:'실버',    desc:'고급 은빛 도금',      price:60, emoji:'🥈',pc:'p-cheap',r:0.04,m:0.97,fc:'#d0d4e0'},
+  {id:'chrome', name:'크롬',    desc:'완벽한 크롬 마감',    price:90, emoji:'💿',pc:'p-cheap',r:0.0, m:1.0, fc:'#e8eeff'},
+  {id:'neon',   name:'네온',    desc:'빛나는 형광 글로우',  price:150,emoji:'💡',pc:'p-cheap',r:1.0, m:0.0, neon:true},
+  {id:'crystal',name:'크리스탈',desc:'투명한 유리 질감',    price:350,emoji:'💎',pc:'p-exp',  r:0.0, m:0.1, tr:true,op:0.42,crystal:true},
+  {id:'car',    name:'자동차',  desc:'달리는 자동차 모양',  price:500,emoji:'🚗',pc:'p-exp',  shape:'car'},
+  {id:'rocket', name:'로켓',    desc:'솟아오르는 로켓 형태', price:600,emoji:'🚀',pc:'p-exp',  shape:'rocket'},
+  {id:'star',   name:'별',      desc:'다섯 꼭짓점 별 모양',  price:400,emoji:'⭐',pc:'p-exp',  shape:'star'},
+  {id:'sword',  name:'검',      desc:'날카로운 검 형태',      price:500,emoji:'⚔️',pc:'p-exp',  shape:'sword'},
+  {id:'mushroom',name:'버섯',   desc:'귀여운 버섯 모양',      price:300,emoji:'🍄',pc:'p-cheap',shape:'mushroom'},
+  {id:'crystal2',name:'크리스탈 샤드',desc:'날카로운 크리스탈 파편',price:700,emoji:'🔷',pc:'p-exp',shape:'crystal2'},
+];
+
+// ══════════════════════════════════════════════════
+// MAPS
+// ══════════════════════════════════════════════════
+const MAPS=[
+  {id:'default',name:'우주',desc:'다채로운 기본 우주',price:0,emoji:'🌌',pc:'p-free',
+   bg:'#06061a',fogColor:'#06061a',fogNear:22,fogFar:65,
+   ambient:[0xffffff,0.75],sun:[0xffffff,1.3],fill:[0x4455ff,0.4],starCol:0xffffff,colors:null,tex:null},
+  {id:'mars',name:'화성',desc:'붉은 화성 · 먼지 구름 하늘',price:200,emoji:'🔴',pc:'p-cheap',
+   bg:'#c47a45',fogColor:'#c06030',fogNear:14,fogFar:45,
+   ambient:[0xff8855,0.95],sun:[0xff6633,1.4],fill:[0x661100,0.5],starCol:0xff9966,
+   colors:['#FF4500','#FF6347','#FF7F50','#E34234','#FF4444','#CC3300',
+           '#FF5500','#DD2200','#FF8C00','#FF6600','#CD2626','#B22222',
+           '#DC143C','#FF2400','#C0392B','#E74C3C','#FF3300','#FF4136'],tex:'mars'},
+  {id:'earth',name:'지구',desc:'파란 지구 · 구름 하늘',price:200,emoji:'🌍',pc:'p-cheap',
+   bg:'#1a6ab5',fogColor:'#4498d0',fogNear:18,fogFar:55,
+   ambient:[0x99ccff,0.85],sun:[0xffffff,1.3],fill:[0x004488,0.45],starCol:0x88ffcc,
+   colors:['#2E8B57','#3CB371','#006400','#1E90FF','#4169E1','#00CED1',
+           '#228B22','#32CD32','#0000CD','#4682B4','#20B2AA','#66CDAA',
+           '#5F9EA0','#008080','#2196F3','#4CAF50','#45B7D1','#1ABC9C'],tex:'earth'},
+];
+
+// ══════════════════════════════════════════════════
+// PERSISTENCE
+// ══════════════════════════════════════════════════
+let coins=0, owned=new Set(['default']), activeSkin='default', progress=0;
+let ownedMaps=new Set(['default']), activeMap='default';
+let clearedLevels={};
+
+function loadSave(){
+  try{
+    coins=parseInt(localStorage.getItem('e3_coins')||'0')||0;
+    owned=new Set(JSON.parse(localStorage.getItem('e3_owned')||'["default"]'));
+    activeSkin=localStorage.getItem('e3_skin')||'default';
+    progress=parseInt(localStorage.getItem('e3_prog')||'0')||0;
+    ownedMaps=new Set(JSON.parse(localStorage.getItem('e3_mown')||'["default"]'));
+    activeMap=localStorage.getItem('e3_map')||'default';
+    clearedLevels=JSON.parse(localStorage.getItem('e3_clv')||'{}');
+  }catch{}
+}
+function doSave(){
+  try{
+    localStorage.setItem('e3_coins',String(coins));
+    localStorage.setItem('e3_owned',JSON.stringify([...owned]));
+    localStorage.setItem('e3_skin',activeSkin);
+    localStorage.setItem('e3_prog',String(progress));
+    localStorage.setItem('e3_mown',JSON.stringify([...ownedMaps]));
+    localStorage.setItem('e3_map',activeMap);
+    localStorage.setItem('e3_clv',JSON.stringify(clearedLevels));
+  }catch{}
+}
+function reward(idx,liv,maxLiv){
+  const b=idx<10?10+idx*9:95+(idx-9)*15;
+  return b+Math.floor((liv/maxLiv)*b*0.5);
+}
+
+// ══════════════════════════════════════════════════
+// THREE.JS
+// ══════════════════════════════════════════════════
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2.5));
+renderer.setSize(innerWidth,innerHeight);
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+
+const _pmrem=new THREE.PMREMGenerator(renderer);
+_pmrem.compileEquirectangularShader();
+let _skinEnvMap=(()=>{
+  const ec=document.createElement('canvas');ec.width=512;ec.height=256;
+  const ectx=ec.getContext('2d');
+  const eg=ectx.createLinearGradient(0,0,0,256);
+  eg.addColorStop(0,'#112244');eg.addColorStop(0.35,'#5588bb');eg.addColorStop(0.65,'#aaccee');eg.addColorStop(1,'#334455');
+  ectx.fillStyle=eg;ectx.fillRect(0,0,512,256);
+  [[80,55,55],[256,40,70],[420,60,50],[160,180,40],[350,190,45]].forEach(([x,y,r])=>{
+    const rg=ectx.createRadialGradient(x,y,0,x,y,r);
+    rg.addColorStop(0,'rgba(255,255,255,0.92)');rg.addColorStop(0.5,'rgba(200,220,255,0.45)');rg.addColorStop(1,'rgba(0,0,0,0)');
+    ectx.fillStyle=rg;ectx.beginPath();ectx.arc(x,y,r,0,Math.PI*2);ectx.fill();
+  });
+  const wg=ectx.createLinearGradient(0,180,0,256);
+  wg.addColorStop(0,'rgba(255,200,100,0)');wg.addColorStop(1,'rgba(255,180,80,0.28)');
+  ectx.fillStyle=wg;ectx.fillRect(0,180,512,76);
+  const et=new THREE.CanvasTexture(ec);
+  et.mapping=THREE.EquirectangularReflectionMapping;
+  const envTex=_pmrem.fromEquirectangular(et).texture;
+  _pmrem.dispose();et.dispose();
+  return envTex;
+})();
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color('#06061a');
+scene.fog=new THREE.Fog('#06061a',22,65);
+const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.1,100);
+camera.position.set(2,3,9);
+const controls=new OrbitControls(camera,canvas);
+controls.enablePan=false;controls.minDistance=1;controls.maxDistance=18;
+controls.dampingFactor=0.08;controls.enableDamping=true;
+controls.autoRotate=true;controls.autoRotateSpeed=1.3;
+const ambLight=new THREE.AmbientLight(0xffffff,0.75);
+const sunLight=new THREE.DirectionalLight(0xffffff,1.3);sunLight.position.set(8,12,8);
+const fillLight=new THREE.DirectionalLight(0x4455ff,0.4);fillLight.position.set(-6,-4,-6);
+const ptLight=new THREE.PointLight(0xffffff,0.5,12);ptLight.position.set(1,2,1);
+scene.add(ambLight,sunLight,fillLight,ptLight);
+const sg=new THREE.BufferGeometry();
+const sv=[];for(let i=0;i<1800;i++)sv.push((Math.random()-.5)*130,(Math.random()-.5)*130,(Math.random()-.5)*130);
+sg.setAttribute('position',new THREE.Float32BufferAttribute(sv,3));
+const starsMesh=new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:.12,sizeAttenuation:true}));
+scene.add(starsMesh);
+const rc=new THREE.Raycaster();
+const pt2=new THREE.Vector2();
+
+// ══════════════════════════════════════════════════
+// PROCEDURAL TEXTURES
+// ══════════════════════════════════════════════════
+const _TC={};
+function makeMoonTex(){if(_TC.moon)return _TC.moon;const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');const g=ctx.createRadialGradient(128,128,0,128,128,180);g.addColorStop(0,'#c2c2c2');g.addColorStop(1,'#787878');ctx.fillStyle=g;ctx.fillRect(0,0,256,256);for(let i=0;i<9000;i++){const x=Math.random()*256,y=Math.random()*256,v=Math.floor(Math.random()*75+88);ctx.fillStyle=`rgb(${v},${v},${v})`;ctx.fillRect(x,y,Math.ceil(Math.random()*3),Math.ceil(Math.random()*3));}for(let i=0;i<14;i++){const x=20+Math.random()*216,y=20+Math.random()*216,r=4+Math.random()*17;const grd=ctx.createRadialGradient(x,y,0,x,y,r);grd.addColorStop(0,'rgba(55,55,55,0.75)');grd.addColorStop(0.55,'rgba(95,95,95,0.45)');grd.addColorStop(1,'rgba(200,200,200,0)');ctx.fillStyle=grd;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}return(_TC.moon=new THREE.CanvasTexture(c));}
+function makeStoneTex(){if(_TC.stone)return _TC.stone;const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');ctx.fillStyle='#7d6b5d';ctx.fillRect(0,0,256,256);for(let i=0;i<10000;i++){const x=Math.random()*256,y=Math.random()*256,b=Math.floor(Math.random()*60+75),r=Math.min(255,Math.floor(b*1.22)),g=Math.min(255,Math.floor(b*1.05));ctx.fillStyle=`rgb(${r},${g},${b})`;ctx.fillRect(x,y,Math.ceil(Math.random()*4),Math.ceil(Math.random()*4));}return(_TC.stone=new THREE.CanvasTexture(c));}
+function makeMarsTex(){if(_TC.mars)return _TC.mars;const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');ctx.fillStyle='#a04020';ctx.fillRect(0,0,256,256);for(let i=0;i<12000;i++){const x=Math.random()*256,y=Math.random()*256;const v=Math.floor(Math.random()*60);const r=Math.min(255,140+v),g=Math.floor(50+v*0.4),b=Math.floor(15+v*0.2);ctx.fillStyle=`rgb(${r},${g},${b})`;ctx.fillRect(x,y,Math.ceil(Math.random()*3),Math.ceil(Math.random()*3));}return(_TC.mars=new THREE.CanvasTexture(c));}
+function makeEarthTex(){if(_TC.earth)return _TC.earth;const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');ctx.fillStyle='#1a4fa0';ctx.fillRect(0,0,256,256);for(let i=0;i<8;i++){const x=Math.random()*256,y=Math.random()*256,w=20+Math.random()*60,h=15+Math.random()*40;const grd=ctx.createRadialGradient(x,y,0,x,y,Math.max(w,h));grd.addColorStop(0,'rgba(34,120,50,0.95)');grd.addColorStop(1,'rgba(10,80,30,0)');ctx.fillStyle=grd;ctx.save();ctx.translate(x,y);ctx.scale(w/Math.max(w,h),h/Math.max(w,h));ctx.translate(-x,-y);ctx.beginPath();ctx.arc(x,y,Math.max(w,h),0,Math.PI*2);ctx.fill();ctx.restore();}return(_TC.earth=new THREE.CanvasTexture(c));}
+function getMapTex(mapId){const m=MAPS.find(x=>x.id===mapId);if(!m||!m.tex)return null;if(m.tex==='moon')return makeMoonTex();if(m.tex==='stone')return makeStoneTex();if(m.tex==='mars')return makeMarsTex();if(m.tex==='earth')return makeEarthTex();return null;}
+
+// ══════════════════════════════════════════════════
+// SKY DOMES
+// ══════════════════════════════════════════════════
+let _marsDome=null,_earthDome=null;
+function makeMarsDome(){
+  if(_marsDome)return _marsDome;
+  const c=document.createElement('canvas');c.width=1024;c.height=512;
+  const ctx=c.getContext('2d');
+  const g=ctx.createLinearGradient(0,0,0,512);
+  g.addColorStop(0,'#3d1205');g.addColorStop(0.25,'#7a2e0a');g.addColorStop(0.55,'#c1683a');g.addColorStop(0.78,'#d4855a');g.addColorStop(1,'#e8a472');
+  ctx.fillStyle=g;ctx.fillRect(0,0,1024,512);
+  for(let i=0;i<22;i++){const x=Math.random()*1100-50,y=80+Math.random()*280,rw=100+Math.random()*220,rh=25+Math.random()*55,alpha=0.18+Math.random()*0.28,r=Math.floor(90+Math.random()*40),gr=Math.floor(35+Math.random()*20),b=Math.floor(8+Math.random()*12);const cg=ctx.createRadialGradient(x,y,0,x,y,Math.max(rw,rh));cg.addColorStop(0,`rgba(${r},${gr},${b},${alpha})`);cg.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=cg;ctx.save();ctx.translate(x,y);ctx.scale(rw/Math.max(rw,rh),rh/Math.max(rw,rh));ctx.translate(-x,-y);ctx.beginPath();ctx.arc(x,y,Math.max(rw,rh),0,Math.PI*2);ctx.fill();ctx.restore();}
+  const tex=new THREE.CanvasTexture(c);
+  const geo=new THREE.SphereGeometry(58,48,24);
+  const mat=new THREE.MeshBasicMaterial({map:tex,side:THREE.BackSide,depthWrite:false,fog:false});
+  _marsDome=new THREE.Mesh(geo,mat);_marsDome.renderOrder=-1;return _marsDome;
+}
+function makeEarthDome(){
+  if(_earthDome)return _earthDome;
+  const c=document.createElement('canvas');c.width=1024;c.height=512;
+  const ctx=c.getContext('2d');
+  const g=ctx.createLinearGradient(0,0,0,512);
+  g.addColorStop(0,'#0a2f6e');g.addColorStop(0.3,'#1462b8');g.addColorStop(0.62,'#3a9de4');g.addColorStop(0.82,'#7ac8f0');g.addColorStop(1,'#c8eaf8');
+  ctx.fillStyle=g;ctx.fillRect(0,0,1024,512);
+  function drawCloud(cx2,cy2,size){const puffs=[[0,0,size],[size*-0.55,size*0.25,size*0.72],[size*0.58,size*0.22,size*0.68],[size*0.0,size*0.45,size*0.5]];puffs.forEach(([px,py,r])=>{const cg=ctx.createRadialGradient(cx2+px,cy2+py,0,cx2+px,cy2+py,r);cg.addColorStop(0,'rgba(255,255,255,0.92)');cg.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=cg;ctx.beginPath();ctx.arc(cx2+px,cy2+py,r,0,Math.PI*2);ctx.fill();});}
+  for(let i=0;i<18;i++){drawCloud(Math.random()*1100-50,160+Math.random()*210,28+Math.random()*58);}
+  const tex=new THREE.CanvasTexture(c);
+  const geo=new THREE.SphereGeometry(58,48,24);
+  const mat=new THREE.MeshBasicMaterial({map:tex,side:THREE.BackSide,depthWrite:false,fog:false});
+  _earthDome=new THREE.Mesh(geo,mat);_earthDome.renderOrder=-1;return _earthDome;
+}
+
+// ══════════════════════════════════════════════════
+// APPLY MAP
+// ══════════════════════════════════════════════════
+function applyMap(mapId){
+  const m=MAPS.find(x=>x.id===mapId)||MAPS[0];
+  if(_marsDome&&_marsDome.parent)scene.remove(_marsDome);
+  if(_earthDome&&_earthDome.parent)scene.remove(_earthDome);
+  if(mapId==='mars'){scene.background.set('#c47a45');scene.add(makeMarsDome());starsMesh.visible=false;}
+  else if(mapId==='earth'){scene.background.set('#1a6ab5');scene.add(makeEarthDome());starsMesh.visible=false;}
+  else{scene.background.set(m.bg);starsMesh.visible=true;}
+  scene.fog.color.set(m.fogColor);scene.fog.near=m.fogNear;scene.fog.far=m.fogFar;
+  ambLight.color.set(m.ambient[0]);ambLight.intensity=m.ambient[1];
+  sunLight.color.set(m.sun[0]);sunLight.intensity=m.sun[1];
+  fillLight.color.set(m.fill[0]);fillLight.intensity=m.fill[1];
+  starsMesh.material.color.set(m.starCol);
+  activeMap=mapId;doSave();
+}
+
+// ══════════════════════════════════════════════════
+// SKIN HELPERS
+// ══════════════════════════════════════════════════
+function skinDef(id){return SKINS.find(s=>s.id===id)||SKINS[0];}
+function mkMat(col,sk,tex,em='#000',ei=0){
+  const c=sk.fc||col;
+  const isMetallic=(sk.m??0)>=0.88;
+  const useEnv=isMetallic||sk.crystal;
+  const emCol=sk.neon?col:em;
+  const emInt=sk.neon?1.4:ei;
+  const mat=new THREE.MeshStandardMaterial({
+    color:c,emissive:emCol,emissiveIntensity:emInt,
+    roughness:sk.r??0.55,metalness:sk.m??0.15,
+    transparent:sk.tr||false,opacity:sk.op??1,
+    side:sk.tr?THREE.DoubleSide:THREE.FrontSide,
+    envMap:useEnv?_skinEnvMap:null,
+    envMapIntensity:isMetallic?2.2:sk.crystal?1.4:0,
+  });
+  if(tex&&!isMetallic&&!sk.crystal){mat.roughnessMap=tex;mat.needsUpdate=true;}
+  return mat;
+}
+
+// ══════════════════════════════════════════════════
+// MESH FACTORIES — modern cute gem arrows
+// ══════════════════════════════════════════════════
+function buildArrow(col,sk,grp,tex){
+  const baseMat=()=>mkMat(col,sk,tex);
+
+  // Tapered shaft body (slightly wider at base)
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(BR*0.82,BR,BL,12),baseMat());
+  body.position.y=-BL/2-HH*0.08;
+
+  // Rounded bottom cap
+  const bottomCap=new THREE.Mesh(new THREE.SphereGeometry(BR,12,7),baseMat());
+  bottomCap.position.y=-BL-HH*0.08;
+
+  // Decorative glowing collar ring where shaft meets head
+  const collarMat=new THREE.MeshStandardMaterial({
+    color:col,emissive:col,emissiveIntensity:0.7,
+    roughness:0.3,metalness:0.6,transparent:true,opacity:0.9
+  });
+  const collar=new THREE.Mesh(new THREE.TorusGeometry(HR*0.55,BR*1.3,8,24),collarMat);
+  collar.rotation.x=Math.PI/2;
+  collar.position.y=-HH*0.06;
+
+  // Gem/diamond shaped head — elongated octahedron
+  const headGeo=new THREE.OctahedronGeometry(HR*0.82,0);
+  // Stretch it to be more pointy and elegant
+  headGeo.applyMatrix4(new THREE.Matrix4().makeScale(0.9,1.75,0.9));
+  const head=new THREE.Mesh(headGeo,baseMat());
+  head.position.y=HH*0.52;
+
+  // Cute bright sparkle sphere at the very tip
+  const tipMat=new THREE.MeshStandardMaterial({
+    color:'#ffffff',emissive:col,emissiveIntensity:1.1,
+    roughness:0.05,metalness:0.6,transparent:true,opacity:0.88,
+    envMap:_skinEnvMap,envMapIntensity:1.8
+  });
+  const tip=new THREE.Mesh(new THREE.SphereGeometry(BR*1.6,10,8),tipMat);
+  tip.position.y=HH*0.52+HR*0.82*1.75;
+
+  // Small decorative side fins at head base
+  const finMat=new THREE.MeshStandardMaterial({
+    color:col,emissive:col,emissiveIntensity:0.35,roughness:0.4,metalness:0.3,
+    transparent:true,opacity:0.75,side:THREE.DoubleSide
+  });
+  const finGeo=new THREE.ConeGeometry(HR*0.42,HH*0.28,3);
+  const finL=new THREE.Mesh(finGeo,finMat);finL.position.set(-HR*0.6,HH*0.1,0);finL.rotation.z=Math.PI*0.5;
+  const finR=new THREE.Mesh(finGeo,finMat);finR.position.set(HR*0.6,HH*0.1,0);finR.rotation.z=-Math.PI*0.5;
+  const finF=new THREE.Mesh(finGeo,finMat);finF.position.set(0,HH*0.1,HR*0.6);finF.rotation.x=-Math.PI*0.5;
+  const finB=new THREE.Mesh(finGeo,finMat);finB.position.set(0,HH*0.1,-HR*0.6);finB.rotation.x=Math.PI*0.5;
+
+  grp.add(body,bottomCap,collar,head,tip,finL,finR,finF,finB);
+  return[body,bottomCap,collar,head,tip,finL,finR,finF,finB];
+}
+
+function buildCar(col,sk,grp){
+  const c=sk.fc||col;
+  const isMetallic=(sk.m??0)>=0.88;
+  const useEnv=isMetallic||sk.crystal;
+  const emCol=sk.neon?col:'#000';
+  const emInt=sk.neon?1.4:0;
+  const mat=(hex,r=0.8,m=0.1,useSkColor=false)=>{
+    const mc=useSkColor?c:hex;
+    return new THREE.MeshStandardMaterial({
+      color:mc,roughness:useSkColor?(sk.r??r):r,metalness:useSkColor?(sk.m??m):m,
+      emissive:useSkColor?emCol:'#000',emissiveIntensity:useSkColor?emInt:0,
+      transparent:useSkColor?(sk.tr||false):false,opacity:useSkColor?(sk.op??1):1,
+      envMap:useSkColor&&useEnv?_skinEnvMap:null,
+      envMapIntensity:useSkColor&&isMetallic?2.2:useSkColor&&sk.crystal?1.4:0,
+    });
+  };
+  const body=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.55,0.18),mat(c,0.8,0.1,true));
+  const cabin=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.24,0.17),mat(c,0.8,0.1,true));cabin.position.set(0,0.05,0.175);
+  const ws=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.2,0.02),mat('#1a3355',0.1,0.1));ws.position.set(0,0.09,0.265);
+  const grille=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.06,0.12),mat('#111',0.9,0));grille.position.set(0,0.29,0);
+  const hlg=new THREE.BoxGeometry(0.07,0.04,0.06),hlm=mat('#ffffaa',0.3,0.1);
+  [[-0.13,0.28,0.07],[0.13,0.28,0.07]].forEach(([x,y,z])=>{const h=new THREE.Mesh(hlg,hlm);h.position.set(x,y,z);grp.add(h);});
+  const wg=new THREE.CylinderGeometry(0.09,0.09,0.07,8),wm=mat('#111',0.9,0);
+  const wheels=[[-0.22,0.18,-0.04],[0.22,0.18,-0.04],[-0.22,-0.18,-0.04],[0.22,-0.18,-0.04]].map(([x,y,z])=>{const w=new THREE.Mesh(wg,wm);w.rotation.z=Math.PI/2;w.position.set(x,y,z);grp.add(w);return w;});
+  grp.add(body,cabin,ws,grille);return[body,cabin,ws,grille,...wheels];
+}
+
+// ── Rocket ────────────────────────────────────────
+function buildRocket(col,sk,grp){
+  const bm=()=>mkMat(col,sk,null);
+  // Main body cylinder
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(BR*1.6,BR*1.8,BL*1.1,10),bm());
+  body.position.y=-BL*0.1;
+  // Nose cone
+  const nose=new THREE.Mesh(new THREE.ConeGeometry(BR*1.6,HH*1.2,10),bm());
+  nose.position.y=BL*0.55+HH*0.6;
+  // Nose tip sparkle
+  const tipMat=new THREE.MeshStandardMaterial({color:'#fff',emissive:col,emissiveIntensity:1.3,roughness:0.05,metalness:0.5,transparent:true,opacity:0.9,envMap:_skinEnvMap,envMapIntensity:1.5});
+  const tip=new THREE.Mesh(new THREE.SphereGeometry(BR*1.0,8,6),tipMat);
+  tip.position.y=BL*0.55+HH*1.2;
+  // 4 fins at base
+  const finMat=new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:0.4,roughness:0.5,metalness:0.2,side:THREE.DoubleSide});
+  const finGeo=new THREE.ConeGeometry(BR*2.8,BL*0.55,3,1,false,0,Math.PI*2);
+  const fins=[[0,0,1],[0,0,-1],[1,0,0],[-1,0,0]].map(([x,,z])=>{
+    const f=new THREE.Mesh(new THREE.BoxGeometry(BR*0.3,BL*0.45,BR*2.8),finMat.clone());
+    f.position.set(x*BR*2,BL*-0.38,z*BR*2);
+    if(x!==0)f.rotation.y=Math.PI/2;
+    grp.add(f);return f;
+  });
+  // Engine nozzle
+  const nozzle=new THREE.Mesh(new THREE.CylinderGeometry(BR*2.2,BR*1.4,BR*2,10),bm());
+  nozzle.position.y=-BL*0.65;
+  // Engine glow
+  const glowMat=new THREE.MeshStandardMaterial({color:'#ff6600',emissive:'#ff4400',emissiveIntensity:2.0,roughness:1,transparent:true,opacity:0.75});
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(BR*1.6,8,6),glowMat);
+  glow.position.y=-BL*0.78;
+  // Window
+  const winMat=new THREE.MeshStandardMaterial({color:'#88ccff',emissive:'#4499ff',emissiveIntensity:0.7,roughness:0.1,metalness:0.3,transparent:true,opacity:0.8});
+  const win=new THREE.Mesh(new THREE.SphereGeometry(BR*0.9,8,6),winMat);
+  win.position.y=BL*0.12;win.position.z=BR*1.7;
+  grp.add(body,nose,tip,nozzle,glow,win,...fins);
+  return[body,nose,tip,nozzle,glow,win,...fins];
+}
+
+// ── Star ──────────────────────────────────────────
+function buildStar(col,sk,grp){
+  const bm=()=>mkMat(col,sk,null);
+  // Hexagonal body shaft
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(BR*0.7,BR*0.9,BL,6),bm());
+  body.position.y=-BL/2-0.04;
+  // Bottom cap
+  const cap=new THREE.Mesh(new THREE.SphereGeometry(BR*0.9,8,6),bm());
+  cap.position.y=-BL-0.04;
+  // 5-pointed star head: central hub + 5 spikes
+  const hub=new THREE.Mesh(new THREE.SphereGeometry(HR*0.42,10,8),bm());
+  hub.position.y=HH*0.45;
+  const spikeMat=()=>mkMat(col,sk,null);
+  for(let i=0;i<5;i++){
+    const angle=(i/5)*Math.PI*2-Math.PI/2;
+    const px=Math.cos(angle)*HR*0.6, pz=Math.sin(angle)*HR*0.6;
+    const spike=new THREE.Mesh(new THREE.ConeGeometry(BR*1.0,HH*0.75,6),spikeMat());
+    spike.position.set(px,HH*0.45,pz);
+    // Rotate to point outward
+    const dir=new THREE.Vector3(px,0,pz).normalize();
+    spike.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);
+    grp.add(spike);
+  }
+  // Top center spike (pointing forward)
+  const topSpike=new THREE.Mesh(new THREE.ConeGeometry(BR*1.1,HH*0.9,6),bm());
+  topSpike.position.y=HH*0.9;
+  // Center sparkle
+  const sparkMat=new THREE.MeshStandardMaterial({color:'#fff',emissive:col,emissiveIntensity:1.6,roughness:0.05,metalness:0.4,transparent:true,opacity:0.95,envMap:_skinEnvMap,envMapIntensity:1.8});
+  const spark=new THREE.Mesh(new THREE.OctahedronGeometry(BR*1.6,0),sparkMat);
+  spark.position.y=HH*0.45;
+  grp.add(body,cap,hub,topSpike,spark);
+  return[body,cap,hub,topSpike,spark];
+}
+
+// ── Sword ─────────────────────────────────────────
+function buildSword(col,sk,grp){
+  const bm=()=>mkMat(col,sk,null);
+  const bladeMat=new THREE.MeshStandardMaterial({color:'#d0e8ff',emissive:'#88aaff',emissiveIntensity:0.45,roughness:0.08,metalness:0.95,envMap:_skinEnvMap,envMapIntensity:2.5});
+  // Blade: very thin flat rectangle, elongated
+  const blade=new THREE.Mesh(new THREE.BoxGeometry(BR*1.4,BL*1.4,BR*0.3),bladeMat.clone());
+  blade.position.y=BL*0.15;
+  // Blade tip (tapered)
+  const tipGeo=new THREE.CylinderGeometry(0,BR*0.7,HH*0.8,4);
+  const tip=new THREE.Mesh(tipGeo,bladeMat.clone());
+  tip.position.y=BL*0.88;tip.rotation.y=Math.PI/4;
+  // Guard (crossguard)
+  const guardMat=bm();
+  const guard=new THREE.Mesh(new THREE.BoxGeometry(HR*2.4,BR*1.4,BR*1.4),guardMat);
+  guard.position.y=-BL*0.55;
+  // Handle
+  const handle=new THREE.Mesh(new THREE.CylinderGeometry(BR*0.9,BR*1.1,BL*0.52,8),bm());
+  handle.position.y=-BL*0.93;
+  // Pommel (round bottom)
+  const pommelMat=new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:0.6,roughness:0.2,metalness:0.7,envMap:_skinEnvMap,envMapIntensity:1.6});
+  const pommel=new THREE.Mesh(new THREE.SphereGeometry(BR*1.5,10,8),pommelMat);
+  pommel.position.y=-BL*1.22;
+  // Gem in guard
+  const gemMat=new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:1.1,roughness:0.0,metalness:0.1,transparent:true,opacity:0.88,envMap:_skinEnvMap,envMapIntensity:2});
+  const gem=new THREE.Mesh(new THREE.OctahedronGeometry(BR*1.1,0),gemMat);
+  gem.position.y=-BL*0.55;
+  grp.add(blade,tip,guard,handle,pommel,gem);
+  return[blade,tip,guard,handle,pommel,gem];
+}
+
+// ── Mushroom ──────────────────────────────────────
+function buildMushroom(col,sk,grp){
+  const bm=()=>mkMat(col,sk,null);
+  // Stem: short cylinder
+  const stemMat=new THREE.MeshStandardMaterial({color:'#fff5e0',emissive:'#fff0cc',emissiveIntensity:0.15,roughness:0.85,metalness:0.0});
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(BR*1.1,BR*1.4,BL*0.85,10),stemMat);
+  stem.position.y=-BL*0.05;
+  // Bottom cap
+  const bottomCap=new THREE.Mesh(new THREE.SphereGeometry(BR*1.4,10,6),stemMat);
+  bottomCap.position.y=-BL*0.48;
+  // Cap (flattened sphere) - big mushroom cap
+  const capMat=bm();
+  const capGeo=new THREE.SphereGeometry(HH*1.05,14,9);
+  capGeo.applyMatrix4(new THREE.Matrix4().makeScale(1,0.6,1));
+  const cap=new THREE.Mesh(capGeo,capMat);
+  cap.position.y=BL*0.42;
+  // Spots on cap
+  const spotMat=new THREE.MeshStandardMaterial({color:'#ffffff',emissive:'#ffffff',emissiveIntensity:0.5,roughness:0.8,metalness:0});
+  [[0,0],[0.55,0.4],[-0.5,0.3],[0.2,-0.45],[-0.25,-0.35],[0.5,-0.15]].forEach(([sx,sz])=>{
+    if(typeof sx!=='number')return;
+    const spot=new THREE.Mesh(new THREE.SphereGeometry(BR*0.65,6,5),spotMat.clone());
+    spot.position.set(sx*HH*0.85,BL*0.55,sz*HH*0.85);
+    grp.add(spot);
+  });
+  // Top sparkle
+  const sparkMat=new THREE.MeshStandardMaterial({color:'#fff',emissive:col,emissiveIntensity:1.2,roughness:0.05,transparent:true,opacity:0.88});
+  const spark=new THREE.Mesh(new THREE.SphereGeometry(BR*1.3,8,6),sparkMat);
+  spark.position.y=BL*0.7;
+  grp.add(stem,bottomCap,cap,spark);
+  return[stem,bottomCap,cap,spark];
+}
+
+// ── Crystal Shard ─────────────────────────────────
+function buildCrystal2(col,sk,grp){
+  const bm=()=>mkMat(col,sk,null);
+  // Main large shard: tall thin octahedron
+  const mainGeo=new THREE.OctahedronGeometry(HR*0.7,0);
+  mainGeo.applyMatrix4(new THREE.Matrix4().makeScale(0.6,2.8,0.6));
+  const mainShard=new THREE.Mesh(mainGeo,new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:0.35,roughness:0.0,metalness:0.1,transparent:true,opacity:0.82,envMap:_skinEnvMap,envMapIntensity:2.4,side:THREE.DoubleSide}));
+  mainShard.position.y=HH*0.25;
+  // 2 side shards
+  [[-1,0.65],[1,-0.55]].forEach(([sign,yOff])=>{
+    const sg=new THREE.OctahedronGeometry(HR*0.42,0);
+    sg.applyMatrix4(new THREE.Matrix4().makeScale(0.5,2.0,0.5));
+    const s=new THREE.Mesh(sg,new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:0.5,roughness:0.0,metalness:0.1,transparent:true,opacity:0.68,envMap:_skinEnvMap,envMapIntensity:2,side:THREE.DoubleSide}));
+    s.position.set(sign*HR*0.75,yOff*HH,0);
+    s.rotation.z=sign*0.35;
+    grp.add(s);
+  });
+  // Glowing core
+  const coreMat=new THREE.MeshStandardMaterial({color:'#ffffff',emissive:col,emissiveIntensity:2.2,roughness:0,transparent:true,opacity:0.6});
+  const core=new THREE.Mesh(new THREE.SphereGeometry(BR*1.2,8,6),coreMat);
+  core.position.y=HH*0.3;
+  grp.add(mainShard,core);
+  return[mainShard,core];
+}
+
+// ══════════════════════════════════════════════════
+// ARROW POOL
+// ══════════════════════════════════════════════════
+let arrows=[],arrowMap={};
+function spawnArrows(lvl,skinId){
+  arrows.forEach(a=>scene.remove(a.root));
+  arrows=[];arrowMap={};
+  const sk=skinDef(skinId||activeSkin);
+  const mapDef=MAPS.find(m=>m.id===activeMap)||MAPS[0];
+  const cols=mapDef.colors||DEFAULT_COLORS;
+  const tex=getMapTex(activeMap);
+  lvl.forEach((def,i)=>{
+    const col=cols[i%cols.length];
+    const root=new THREE.Group(),inner=new THREE.Group();root.add(inner);
+    const parts=sk.shape==='car'?buildCar(col,sk,inner):sk.shape==='rocket'?buildRocket(col,sk,inner):sk.shape==='star'?buildStar(col,sk,inner):sk.shape==='sword'?buildSword(col,sk,inner):sk.shape==='mushroom'?buildMushroom(col,sk,inner):sk.shape==='crystal2'?buildCrystal2(col,sk,inner):buildArrow(col,sk,inner,tex);
+    const dv=DV[def.dir].clone();
+    inner.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dv);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.27,0.028,8,32),new THREE.MeshStandardMaterial({color:'#fff',emissive:'#fff',emissiveIntensity:1.3,roughness:1,metalness:0}));
+    ring.rotation.x=Math.PI/2;ring.visible=false;root.add(ring);
+    const bp=new THREE.Vector3(def.pos[0]*GRID,def.pos[1]*GRID,def.pos[2]*GRID);
+    root.position.copy(bp);
+    const aid=`a${i}`;
+    root.userData.arrowId=aid;inner.userData.arrowId=aid;
+    parts.forEach(p=>{p.userData.arrowId=aid;});
+    scene.add(root);
+    const entry={id:aid,def:{...def,pos:[...def.pos],id:aid,col},root,inner,ring,parts,state:'idle',prog:0,bp:bp.clone(),dv,oDelay:i*0.055,oStart:new THREE.Vector3()};
+    arrows.push(entry);arrowMap[aid]=entry;
+  });
+}
+
+// ══════════════════════════════════════════════════
+// BLOCKING
+// ══════════════════════════════════════════════════
+function blocked(a,pool){
+  pool=pool||arrows;
+  const[ax,ay,az]=a.def.pos,d=a.def.dir;
+  return pool.some(o=>{
+    if(o.id===a.id||o.state==='escaped')return false;
+    const[bx,by,bz]=o.def.pos;
+    if(d==='px')return by===ay&&bz===az&&bx>ax;if(d==='nx')return by===ay&&bz===az&&bx<ax;
+    if(d==='py')return bx===ax&&bz===az&&by>ay;if(d==='ny')return bx===ax&&bz===az&&by<ay;
+    if(d==='pz')return bx===ax&&by===ay&&bz>az;if(d==='nz')return bx===ax&&by===ay&&bz<az;
+  });
+}
+
+// ══════════════════════════════════════════════════
+// PATH PREVIEW
+// ══════════════════════════════════════════════════
+let prevMesh=null;
+function showPreview(a){
+  clearPreview();
+  const s=a.bp.clone(),e=s.clone().addScaledVector(a.dv,4.2),m=s.clone().lerp(e,0.5),l=s.distanceTo(e);
+  const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),a.dv);
+  prevMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,l,6),new THREE.MeshStandardMaterial({color:a.def.col,transparent:true,opacity:0.28,emissive:a.def.col,emissiveIntensity:0.35,roughness:1,metalness:0}));
+  prevMesh.position.copy(m);prevMesh.quaternion.copy(q);scene.add(prevMesh);
+}
+function clearPreview(){if(prevMesh){scene.remove(prevMesh);prevMesh=null;}}
+
+// ══════════════════════════════════════════════════
+// GLOW
+// ══════════════════════════════════════════════════
+function setGlow(entry,on){
+  const sk=skinDef(activeSkin);
+  entry.parts.forEach(p=>{if(!p.material)return;p.material.emissive.set(on?entry.def.col:'#000');p.material.emissiveIntensity=on?0.8:(sk.neon?1.4:0);});
+  entry.ring.visible=on;
+}
+
+// ══════════════════════════════════════════════════
+// GAME STATE
+// ══════════════════════════════════════════════════
+let phase='menu';
+let lvIdx=0,lives=5,maxLiv=5,selId=null;
+let escaped=0,shk=0;
+let opening=false,openT=0;
+let lastId=null,lastT=0;
+let idleT=0,hudOn=true;
+let demoIdx=0,demoT=0;
+
+// ══════════════════════════════════════════════════
+// HIT TEST
+// ══════════════════════════════════════════════════
+function hitTest(cx,cy){
+  const r=canvas.getBoundingClientRect();
+  pt2.set(((cx-r.left)/r.width)*2-1,-((cy-r.top)/r.height)*2+1);
+  rc.setFromCamera(pt2,camera);
+  const roots=arrows.filter(a=>a.state!=='escaped'&&a.root.visible).map(a=>a.root);
+  const hits=rc.intersectObjects(roots,true);
+  if(!hits.length)return null;
+  let obj=hits[0].object;
+  while(obj&&!obj.userData.arrowId)obj=obj.parent;
+  return obj?obj.userData.arrowId:null;
+}
+
+// ══════════════════════════════════════════════════
+// SELECT & LAUNCH
+// ══════════════════════════════════════════════════
+function selectArrow(id){
+  if(phase!=='playing'&&phase!=='multi-playing')return;
+  if(opening){opening=false;}
+  const e=arrowMap[id];if(!e||e.state!=='idle')return;
+  resetIdle();
+  const now=Date.now(),dbl=(lastId===id&&now-lastT<360);
+  lastId=id;lastT=now;
+  if(dbl){launchArrow(id);return;}
+  if(selId&&selId!==id){const p=arrowMap[selId];if(p)setGlow(p,false);}
+  selId=id;setGlow(e,true);showPreview(e);
+  if(phase==='playing'){
+    document.getElementById('launch-btn').style.display='inline-block';
+    const hb=document.getElementById('hint-bar');hb.style.opacity='1';setTimeout(()=>{hb.style.opacity='0';},2500);
+  }
+}
+function launchArrow(id){
+  const e=arrowMap[id||selId];if(!e||e.state!=='idle')return;
+  clearPreview();setGlow(e,false);
+  document.getElementById('launch-btn').style.display='none';
+  selId=null;lastId=null;
+  if(blocked(e)){
+    e.state='returning';e.prog=0.22;
+    if(phase==='playing'){lives--;shk=1.0;updateHUD();flashBlock();if(lives<=0)setTimeout(()=>endGame(false),700);}
+    else if(phase==='multi-playing'){shk=0.6;flashBlock();}
+  }else{
+    e.state='moving';e.prog=0;
+    if(phase==='multi-playing'){multiEscape();}
+  }
+}
+function flashBlock(){const el=document.getElementById('blocked-flash');el.style.opacity='1';setTimeout(()=>{el.style.opacity='0';},900);}
+
+// ══════════════════════════════════════════════════
+// OPENING ANIM
+// ══════════════════════════════════════════════════
+function startOpening(){
+  opening=true;openT=Date.now()/1000;
+  const cen=new THREE.Vector3();
+  arrows.forEach(a=>cen.add(a.bp));cen.divideScalar(arrows.length);
+  arrows.forEach((a,i)=>{const sp=7+Math.random()*4;a.oStart.set(cen.x+(Math.random()-.5)*sp,cen.y+7+i*0.2,cen.z+(Math.random()-.5)*sp);a.root.position.copy(a.oStart);a.root.visible=true;});
+}
+
+// ══════════════════════════════════════════════════
+// ARROW TICK
+// ══════════════════════════════════════════════════
+function tickArrow(a,dt){
+  if(a.state==='escaped'){a.root.visible=false;return;}
+  a.root.visible=true;
+  if(a.state==='moving'){
+    a.prog+=dt*SPEED;
+    if(a.prog>=1){a.prog=1;a.state='escaped';if(phase==='playing'){escaped++;updateHUD();checkWin();}else if(phase==='multi-playing'){escaped++;updateMultiHUD();checkMultiWin();}}
+    const t=a.prog,e=t<.5?2*t*t:-1+(4-2*t)*t;
+    a.root.position.copy(a.bp.clone().addScaledVector(a.dv,e*ESCAPE));
+  }else if(a.state==='returning'){
+    a.prog-=dt*7;if(a.prog<=0){a.prog=0;a.state='idle';}
+    a.root.position.copy(a.bp.clone().addScaledVector(a.dv,a.prog*ESCAPE));
+  }else{a.root.position.lerp(a.bp,0.2);}
+}
+
+// ══════════════════════════════════════════════════
+// DEMO MODE
+// ══════════════════════════════════════════════════
+function initDemo(){
+  spawnArrows(getLevel(demoIdx%5),'default');
+  demoT=0;controls.autoRotate=true;controls.autoRotateSpeed=1.3;
+  camera.position.set(1.5,2,5);controls.target.set(0,0,0);controls.update();
+}
+function tickDemo(dt){
+  demoT+=dt;
+  if(demoT>=1.4){
+    demoT=0;
+    const free=arrows.filter(a=>a.state==='idle'&&!blocked(a));
+    if(free.length){const a=free[Math.floor(Math.random()*free.length)];a.state='moving';a.prog=0;}
+    if(arrows.every(a=>a.state==='escaped')){demoIdx++;initDemo();}
+  }
+  arrows.forEach(a=>tickArrow(a,dt*1.1));
+}
+
+// ══════════════════════════════════════════════════
+// LEVEL LOAD
+// ══════════════════════════════════════════════════
+function loadLevel(i){
+  lvIdx=i;const lv=getLevel(i);
+  {const _dc=diffConfig(i);maxLiv=_dc.label==='easy'?7:_dc.label==='med'?6:_dc.label==='hard'?4:3;}lives=maxLiv;
+  selId=null;lastId=null;escaped=0;phase='playing';
+  controls.autoRotate=false;
+  spawnArrows(lv,activeSkin);
+  const sp=Math.sqrt(lv.length)*GRID;
+  const cen1=new THREE.Vector3();arrows.forEach(a=>cen1.add(a.bp));cen1.divideScalar(arrows.length);
+  const portrait1=innerHeight>innerWidth*1.1;
+  camera.position.set(cen1.x,cen1.y+sp*.5,cen1.z+(portrait1?sp*2.5+5.5:sp*1.9+3.5));
+  controls.target.copy(cen1);controls.update();
+  idleT=0;hudOn=true;
+  showUI('hud');
+  document.getElementById('multi-hud').classList.remove('on');
+  document.getElementById('launch-btn').style.display='none';
+  document.getElementById('hud').style.opacity='1';
+  document.getElementById('tap-restore').style.opacity='0';
+  document.getElementById('exit-btn').style.display='flex';
+  updateHUD();startOpening();
+  if(i>=progress){progress=i;doSave();}
+}
+
+// ══════════════════════════════════════════════════
+// UI SCREENS
+// ══════════════════════════════════════════════════
+function showUI(which){
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('hud').style.display='none';
+  document.getElementById('win-ov').style.display='none';
+  document.getElementById('over-ov').style.display='none';
+  document.getElementById('shop').classList.remove('on');
+  document.getElementById('coin-pill').style.display='none';
+  document.getElementById('exit-btn').style.display='none';
+  document.getElementById('multi-screen').classList.remove('on');
+  document.getElementById('multi-result').classList.remove('on');
+  if(which==='menu'){
+    document.getElementById('menu').classList.remove('hidden');
+    document.getElementById('coin-pill').style.display='flex';
+  }else if(which==='hud'){
+    document.getElementById('hud').style.display='block';
+    document.getElementById('exit-btn').style.display='flex';
+  }else if(which==='win'){
+    document.getElementById('win-ov').style.display='flex';
+  }else if(which==='over'){
+    document.getElementById('over-ov').style.display='flex';
+  }else if(which==='shop'){
+    document.getElementById('shop').classList.add('on');
+  }else if(which==='multi-entry'){
+    document.getElementById('multi-screen').classList.add('on');
+    document.getElementById('multi-entry-card').style.display='block';
+    document.getElementById('multi-lobby-card').style.display='none';
+  }else if(which==='multi-lobby'){
+    document.getElementById('multi-screen').classList.add('on');
+    document.getElementById('multi-entry-card').style.display='none';
+    document.getElementById('multi-lobby-card').style.display='block';
+  }else if(which==='multi-result'){
+    document.getElementById('multi-result').classList.add('on');
+  }
+}
+
+function updateHUD(){
+  document.getElementById('lives-txt').textContent='❤️'.repeat(lives)+'🖤'.repeat(Math.max(0,maxLiv-lives));
+  document.getElementById('level-txt').textContent=`레벨 ${lvIdx+1}`;
+  document.getElementById('hud-coin-val').textContent=coins;
+  document.getElementById('pfill').style.width=(escaped/arrows.length*100)+'%';
+}
+function updateCoins(){
+  document.getElementById('coin-val').textContent=coins;
+  document.getElementById('hud-coin-val').textContent=coins;
+  const s=document.getElementById('shop-coin-val');if(s)s.textContent=coins;
+}
+
+// ══════════════════════════════════════════════════
+// WIN / OVER
+// ══════════════════════════════════════════════════
+function checkWin(){if(arrows.every(a=>a.state==='escaped'))endGame(true);}
+function endGame(won){
+  phase=won?'win':'over';clearPreview();
+  document.getElementById('exit-btn').style.display='none';
+  if(!won){showUI('over');return;}
+  const stars=lives>=maxLiv?3:lives>0?2:1;
+  const prev=clearedLevels[lvIdx]||0;
+  if(stars>prev)clearedLevels[lvIdx]=stars;
+  const r=reward(lvIdx,lives,maxLiv);coins+=r;doSave();updateCoins();
+  popup(`+${r} 💰`,innerWidth/2,innerHeight*.45);
+  document.getElementById('w-stars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+  document.getElementById('w-coins').textContent=`+${r} 💰`;
+  document.getElementById('w-sub').textContent=`레벨 ${lvIdx+1} 클리어! 생명 ${lives}/${maxLiv} 남음`;
+  showUI('win');
+}
+
+// ══════════════════════════════════════════════════
+// POPUP
+// ══════════════════════════════════════════════════
+function popup(txt,cx,cy,col='#FFD700'){
+  const el=document.createElement('div');
+  el.className='popup';el.textContent=txt;el.style.color=col;
+  Object.assign(el.style,{left:cx+'px',top:cy+'px',transform:'translate(-50%,-50%)'});
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{Object.assign(el.style,{transform:'translate(-50%,-220%)',opacity:'0'});}));
+  setTimeout(()=>el.remove(),1500);
+}
+
+// ══════════════════════════════════════════════════
+// IDLE
+// ══════════════════════════════════════════════════
+function resetIdle(){
+  idleT=0;
+  if(!hudOn&&(phase==='playing'||phase==='multi-playing')){hudOn=true;document.getElementById('hud').style.opacity='1';document.getElementById('tap-restore').style.opacity='0';controls.autoRotate=false;}
+}
+function tickIdle(dt){
+  if(phase!=='playing'&&phase!=='multi-playing')return;
+  idleT+=dt;
+  if(idleT>=5&&hudOn){hudOn=false;document.getElementById('hud').style.opacity='0';document.getElementById('tap-restore').style.opacity='1';controls.autoRotate=true;controls.autoRotateSpeed=0.5;}
+}
+
+// ══════════════════════════════════════════════════
+// SHOP
+// ══════════════════════════════════════════════════
+let shopTab='skin';
+window.setShopTab=function(tab){
+  shopTab=tab;
+  document.getElementById('tab-skin').classList.toggle('on',tab==='skin');
+  document.getElementById('tab-map').classList.toggle('on',tab==='map');
+  document.getElementById('skin-grid').classList.toggle('hidden',tab!=='skin');
+  document.getElementById('map-grid').classList.toggle('hidden',tab!=='map');
+};
+function renderShopGrid(){
+  updateCoins();
+  const sg=document.getElementById('skin-grid');sg.innerHTML='';
+  SKINS.forEach(s=>{const ow=owned.has(s.id),eq=activeSkin===s.id;const card=document.createElement('div');card.className='sk'+(eq?' eq':ow?' own':'');card.innerHTML=`<span class="sk-ico">${s.emoji}</span><div class="sk-name">${s.name}</div><div class="sk-desc">${s.desc}</div><div class="sk-price ${s.pc}">${s.price===0?'무료':s.price+' 💰'}</div>${eq?'<span class="sk-badge b-eq">장착중</span>':ow?'<span class="sk-badge b-own">보유</span>':''}`;card.onclick=()=>skinTap(s.id);sg.appendChild(card);});
+  const mg=document.getElementById('map-grid');mg.innerHTML='';
+  MAPS.forEach(m=>{const ow=ownedMaps.has(m.id),eq=activeMap===m.id;const card=document.createElement('div');card.className='sk'+(eq?' eq':ow?' own':'');card.innerHTML=`<span class="sk-ico">${m.emoji}</span><div class="sk-name">${m.name}</div><div class="sk-desc">${m.desc}</div><div class="sk-price ${m.pc}">${m.price===0?'무료':m.price+' 💰'}</div>${eq?'<span class="sk-badge b-eq">장착중</span>':ow?'<span class="sk-badge b-own">보유</span>':''}`;card.onclick=()=>mapTap(m.id);mg.appendChild(card);});
+}
+function skinTap(id){const s=SKINS.find(x=>x.id===id);if(!s)return;if(!owned.has(id)){if(coins<s.price){popup('코인 부족 😢',innerWidth/2,innerHeight*.5,'#ff6b6b');return;}coins-=s.price;owned.add(id);doSave();}activeSkin=id;doSave();renderShopGrid();updateCoins();}
+function mapTap(id){const m=MAPS.find(x=>x.id===id);if(!m)return;if(!ownedMaps.has(id)){if(coins<m.price){popup('코인 부족 😢',innerWidth/2,innerHeight*.5,'#ff6b6b');return;}coins-=m.price;ownedMaps.add(id);doSave();}applyMap(id);renderShopGrid();updateCoins();if(phase==='menu'||phase==='shop')initDemo();}
+
+// ══════════════════════════════════════════════════
+// LEVEL SELECT
+// ══════════════════════════════════════════════════
+let lsTab='all';
+function openLevelSelect(){
+  const el=document.getElementById('level-select');
+  el.style.display='flex';el.getBoundingClientRect();el.classList.add('open');
+  lsTab='all';setLsTab('all',false);renderLevelGrid();
+}
+function closeLevelSelect(){
+  const el=document.getElementById('level-select');
+  el.style.transition='transform .38s cubic-bezier(0.25,0.46,0.45,0.94)';
+  el.style.transform='translateX(100%)';el.classList.remove('open');
+  setTimeout(()=>{el.style.display='none';el.style.transform='';},400);
+}
+window.setLsTab=function(tab,render=true){
+  lsTab=tab;
+  ['all','clear','todo'].forEach(t=>document.getElementById('lst-'+t).classList.toggle('on',t===tab));
+  document.getElementById('ls-search').value='';document.getElementById('ls-sclear').style.display='none';
+  if(render)renderLevelGrid();
+};
+function diffLabel(i){const l=diffConfig(i).label;return l==='easy'?'<span class="diff-badge diff-easy">쉬움</span>':l==='med'?'<span class="diff-badge diff-med">보통</span>':l==='hard'?'<span class="diff-badge diff-hard">어려움</span>':'<span class="diff-badge diff-ext">극한</span>';}
+function renderLevelGrid(){
+  const grid=document.getElementById('ls-grid');
+  const empty=document.getElementById('ls-empty');
+  const search=(document.getElementById('ls-search').value||'').trim();
+  const maxAvail=progress;
+  const items=[];
+  for(let i=0;i<=maxAvail+1;i++){
+    const locked=i>maxAvail;const cleared=!locked&&(clearedLevels[i]!=null);const avail=!locked&&!cleared;
+    if(lsTab==='clear'&&!cleared)continue;if(lsTab==='todo'&&(cleared||locked))continue;
+    if(search){const num=parseInt(search);if(isNaN(num)||i+1!==num)continue;}
+    items.push({i,locked,cleared,stars:clearedLevels[i]||0});
+  }
+  const totalPlay=maxAvail+1;
+  const nCleared=Object.keys(clearedLevels).filter(k=>parseInt(k)<=maxAvail).length;
+  document.getElementById('ls-stat').textContent=`${nCleared} / ${totalPlay} 클리어`;
+  grid.innerHTML='';
+  if(items.length===0){empty.style.display='flex';grid.style.display='none';}
+  else{empty.style.display='none';grid.style.display='grid';}
+  items.forEach(({i,locked,cleared,stars})=>{
+    const n=getLevelArrowCount(i);
+    const starsStr=cleared?'⭐'.repeat(stars)+'☆'.repeat(3-stars):'';
+    const badgeClass=cleared?'lvcb-cl':locked?'lvcb-lk':'lvcb-av';
+    const badgeTxt=cleared?'클리어':locked?'🔒잠김':'도전!';
+    const cardClass=cleared?'lvc-cleared':locked?'lvc-locked':'lvc-avail';
+    const card=document.createElement('div');
+    card.className=`lv-card ${cardClass}`;
+    card.innerHTML=`
+      <span class="lvc-best">${cleared?stars+'성':''}</span>
+      ${diffLabel(i)}
+      <div class="lvc-top">${starsStr||(locked?'🔒':'')}</div>
+      <div class="lvc-num">${i+1}</div>
+      <div class="lvc-meta">Lv.${i+1} · ${n}개</div>
+      <div class="lvc-badge ${badgeClass}">${badgeTxt}</div>`;
+    if(!locked){card.onclick=()=>{closeLevelSelect();setTimeout(()=>loadLevel(i),420);};}
+    grid.appendChild(card);
+  });
+}
+
+// Swipe right to close
+(()=>{
+  const el=document.getElementById('level-select');
+  let sx=null,sy=null,dragging=false;
+  el.addEventListener('touchstart',e=>{if(e.target.closest('#ls-grid,#ls-scroll'))return;sx=e.touches[0].clientX;sy=e.touches[0].clientY;dragging=false;},{passive:true});
+  el.addEventListener('touchmove',e=>{if(sx===null)return;const dx=e.touches[0].clientX-sx,dy=Math.abs(e.touches[0].clientY-sy);if(!dragging&&dy>20){sx=null;return;}if(dx>10){dragging=true;}if(dragging&&dx>0){el.style.transition='none';el.style.transform=`translateX(${dx}px)`;}},{passive:true});
+  el.addEventListener('touchend',e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(dragging&&dx>75){closeLevelSelect();}else{el.style.transition='transform .3s';el.style.transform='translateX(0)';}dragging=false;},{passive:true});
+})();
+
+document.getElementById('ls-search').addEventListener('input',function(){document.getElementById('ls-sclear').style.display=this.value?'block':'none';renderLevelGrid();});
+document.getElementById('ls-sclear').addEventListener('click',function(){document.getElementById('ls-search').value='';this.style.display='none';renderLevelGrid();});
+
+// ══════════════════════════════════════════════════
+// MULTIPLAYER  (WebSocket relay)
+// ══════════════════════════════════════════════════
+let multiWs=null;
+let multiCode='';
+let multiRole=null; // 'host'|'guest'
+let multiMyEscaped=0;
+let multiOpEscaped=0;
+let multiTotal=0;
+let multiMyFinishTime=null;
+let multiOpFinishTime=null;
+let multiStartTime=null;
+let multiOpDone=false;
+let multiOpAlive=false;
+
+// Render relay server — default for all non-dev hosts (GitHub Pages, etc.)
+const RENDER_WS='wss://three-d-escape-multi-server.onrender.com';
+
+function getAutoWsUrl(){
+  if(location.protocol==='file:')return null;
+  const h=location.host;
+  // Auto-detect only for local dev or Replit environments
+  if(h.startsWith('localhost')||h.startsWith('127.')||
+     h.includes('.replit.')||h.includes('.repl.co')||h.includes('.replit.app')){
+    const proto=location.protocol==='https:'?'wss:':'ws:';
+    return proto+'//'+h+'/api/ws';
+  }
+  return null;
+}
+
+function openMultiplayer(){
+  phase='multi-entry';
+  showUI('multi-entry');
+  ['cd0','cd1','cd2','cd3'].forEach(id=>{document.getElementById(id).value='';});
+  const urlInput=document.getElementById('multi-server-url');
+  if(urlInput){urlInput.value=getAutoWsUrl()||RENDER_WS;}
+}
+
+
+
+function getCodeValue(){
+  return ['cd0','cd1','cd2','cd3'].map(id=>document.getElementById(id).value||'_').join('');
+}
+
+function multiSend(obj){
+  if(multiWs&&multiWs.readyState===WebSocket.OPEN){
+    multiWs.send(JSON.stringify(obj));
+  }
+}
+
+function closeMultiWs(){
+  if(multiWs){
+    multiWs.onclose=null;multiWs.onerror=null;multiWs.onmessage=null;
+    multiWs.close();multiWs=null;
+  }
+}
+
+function joinMultiRoom(){
+  const code=getCodeValue();
+  if(code.includes('_')||code.length!==4||isNaN(parseInt(code))){
+    popup('코드 4자리를 입력하세요!',innerWidth/2,innerHeight*.5,'#ff6b6b');return;
+  }
+  const serverUrl=(document.getElementById('multi-server-url').value||'').trim()||getAutoWsUrl()||RENDER_WS;
+  multiCode=code;
+  multiRole=null;
+  multiOpAlive=false;
+  closeMultiWs();
+
+  document.getElementById('multi-code-display').textContent=code;
+  document.getElementById('multi-lobby-title').textContent='연결 중...';
+  document.getElementById('multi-status').innerHTML='<span class="multi-wait-dots">서버 연결 중<span>.</span><span>.</span><span>.</span></span>';
+  showUI('multi-lobby');
+
+  const ws=new WebSocket(serverUrl);
+  multiWs=ws;
+
+  ws.onopen=()=>{
+    ws.send(JSON.stringify({type:'join',code}));
+  };
+
+  ws.onmessage=(ev)=>{
+    let msg;
+    try{msg=JSON.parse(ev.data);}catch{return;}
+    handleMultiMsg(msg);
+  };
+
+  ws.onerror=()=>{
+    popup('서버 연결 실패! 서버 주소를 확인하세요.',innerWidth/2,innerHeight*.45,'#ff6b6b');
+    showUI('multi-entry');
+  };
+
+  ws.onclose=()=>{
+    if(phase==='multi-playing'||phase==='multi-done'){
+      handleOpponentDisconnect();
+    }
+  };
+}
+
+function handleMultiMsg(msg){
+  if(!msg||!msg.type)return;
+
+  if(msg.type==='joined'){
+    multiRole=msg.role;
+    multiOpAlive=false;
+    if(multiRole==='host'){
+      document.getElementById('multi-lobby-title').textContent='방 생성됨 (HOST)';
+      document.getElementById('multi-status').innerHTML='<span class="multi-wait-dots">상대방 기다리는 중<span>.</span><span>.</span><span>.</span></span>';
+    } else {
+      document.getElementById('multi-lobby-title').textContent='접속됨! (GUEST)';
+      document.getElementById('multi-status').textContent='게임 시작 중...';
+    }
+  } else if(msg.type==='opponent_joined'){
+    multiOpAlive=true;
+    document.getElementById('multi-lobby-title').textContent='상대 접속! (HOST)';
+    document.getElementById('multi-status').textContent='게임 시작 중...';
+    // Tell guest to start countdown at the same time
+    setTimeout(()=>{multiSend({type:'start_countdown'});startMultiCountdown();},600);
+  } else if(msg.type==='start_countdown'){
+    // Relayed from host to guest to sync start
+    if(multiRole==='guest'){
+      multiOpAlive=true;
+      setTimeout(()=>startMultiCountdown(),0);
+    }
+  } else if(msg.type==='room_full'){
+    popup('방이 꽉 찼습니다! 다른 코드를 사용하세요.',innerWidth/2,innerHeight*.45,'#ff6b6b');
+    closeMultiWs();
+    showUI('multi-entry');
+  } else if(msg.type==='progress'){
+    multiOpEscaped=msg.escaped;
+    updateMultiHUD();
+  } else if(msg.type==='finished'){
+    multiOpFinishTime=msg.time;
+    multiOpDone=true;
+    updateMultiHUD();
+    if(multiMyFinishTime!==null){showMultiResult();}
+    else{popup('상대 완료! 서둘러!',innerWidth/2,innerHeight*.38,'#f72585');}
+  } else if(msg.type==='again'){
+    setTimeout(()=>startMultiCountdown(),400);
+  } else if(msg.type==='opponent_disconnected'){
+    handleOpponentDisconnect();
+  }
+}
+
+function handleOpponentDisconnect(){
+  popup('상대방 연결이 끊겼습니다.',innerWidth/2,innerHeight*.4,'#ff6b6b');
+  if(phase==='multi-playing'||phase==='multi-done'){
+    setTimeout(()=>goMenu(),2500);
+  }
+}
+
+function startMultiCountdown(){
+  const cnt=document.getElementById('multi-countdown');
+  cnt.classList.add('on');
+  const nums=['3','2','1','GO!'];
+  let i=0;
+  const step=()=>{
+    if(i>=nums.length){
+      cnt.classList.remove('on');
+      startMultiGame();
+      return;
+    }
+    document.getElementById('countdown-num').textContent=nums[i];
+    document.getElementById('countdown-num').style.animation='none';
+    void document.getElementById('countdown-num').offsetWidth;
+    document.getElementById('countdown-num').style.animation='cntPop .6s ease-out';
+    i++;
+    setTimeout(step,i<nums.length?800:500);
+  };
+  step();
+}
+
+function startMultiGame(){
+  const lv=genMultiLevel(multiCode);
+  multiTotal=lv.length;
+  multiMyEscaped=0;multiOpEscaped=0;
+  multiMyFinishTime=null;multiOpFinishTime=null;
+  multiOpDone=false;
+  multiStartTime=Date.now();
+  escaped=0;
+  selId=null;lastId=null;
+  phase='multi-playing';
+  controls.autoRotate=false;
+  spawnArrows(lv,activeSkin);
+  const sp=Math.sqrt(lv.length)*GRID;
+  const cen2=new THREE.Vector3();arrows.forEach(a=>cen2.add(a.bp));cen2.divideScalar(arrows.length);
+  const portrait2=innerHeight>innerWidth*1.1;
+  camera.position.set(cen2.x,cen2.y+sp*.5,cen2.z+(portrait2?sp*2.5+5.5:sp*1.9+3.5));
+  controls.target.copy(cen2);controls.update();
+  idleT=0;hudOn=true;
+  showUI('hud');
+  document.getElementById('multi-hud').classList.add('on');
+  document.getElementById('launch-btn').style.display='none';
+  document.getElementById('hud').style.display='block';
+  document.getElementById('hud').style.opacity='1';
+  document.getElementById('pbar').style.display='none';
+  document.getElementById('lives-txt').textContent='⚡ 대결';
+  document.getElementById('level-txt').textContent='코드: '+multiCode;
+  document.getElementById('exit-btn').style.display='flex';
+  document.getElementById('tap-restore').style.opacity='0';
+  updateMultiHUD();
+  startOpening();
+}
+
+function multiEscape(){
+  multiMyEscaped++;
+  multiSend({type:'progress',escaped:multiMyEscaped});
+  updateMultiHUD();
+}
+
+function updateMultiHUD(){
+  const total=multiTotal||1;
+  const myPct=(multiMyEscaped/total*100).toFixed(0);
+  const opPct=(multiOpEscaped/total*100).toFixed(0);
+  document.getElementById('mp-my-fill').style.width=myPct+'%';
+  document.getElementById('mp-op-fill').style.width=opPct+'%';
+  document.getElementById('mp-my-count').textContent=multiMyEscaped+'/'+total;
+  document.getElementById('mp-op-count').textContent=multiOpEscaped+'/'+total;
+}
+
+function checkMultiWin(){
+  if(arrows.every(a=>a.state==='escaped')){
+    const elapsed=((Date.now()-multiStartTime)/1000).toFixed(2);
+    multiMyFinishTime=parseFloat(elapsed);
+    multiSend({type:'finished',time:multiMyFinishTime});
+    if(multiOpDone){
+      showMultiResult();
+    } else {
+      popup('완료! 상대방 기다리는 중...',innerWidth/2,innerHeight*.35,'#4cc9f0');
+      // Auto show result after 8s if opponent doesn't respond
+      setTimeout(()=>{if(phase==='multi-playing'||phase==='multi-done')showMultiResult();},8000);
+    }
+    phase='multi-done';
+  }
+}
+
+function showMultiResult(){
+  const myT=multiMyFinishTime;
+  const opT=multiOpFinishTime;
+  let emoji,title,detail;
+  if(myT!==null&&opT!==null){
+    if(myT<opT){emoji='🏆';title='승리!';detail=`상대보다 ${(opT-myT).toFixed(2)}초 빨랐어요!`;}
+    else if(myT>opT){emoji='💔';title='패배...';detail=`상대보다 ${(myT-opT).toFixed(2)}초 느렸어요. 다시 도전!`;}
+    else{emoji='🤝';title='무승부!';detail='정확히 같은 시간이에요!';}
+  } else if(myT!==null&&opT===null){
+    emoji='🏆';title='승리!';detail='상대방이 완료하지 못했어요!';
+  } else {
+    emoji='💔';title='패배...';detail='상대방이 먼저 완료했어요. 다시 도전!';
+  }
+  document.getElementById('mr-emoji').textContent=emoji;
+  document.getElementById('mr-title').textContent=title;
+  document.getElementById('mr-my-time').textContent=myT!==null?myT+'초':'미완';
+  document.getElementById('mr-op-time').textContent=opT!==null?opT+'초':'미완';
+  document.getElementById('mr-detail').textContent=detail;
+  phase='multi-result';
+  document.getElementById('multi-hud').classList.remove('on');
+  document.getElementById('pbar').style.display='block';
+  showUI('multi-result');
+}
+
+// Code digit input handlers
+(()=>{
+  const digits=['cd0','cd1','cd2','cd3'];
+  digits.forEach((id,i)=>{
+    const el=document.getElementById(id);
+    el.addEventListener('input',function(){
+      this.value=this.value.replace(/[^0-9]/g,'').slice(-1);
+      if(this.value&&i<digits.length-1)document.getElementById(digits[i+1]).focus();
+    });
+    el.addEventListener('keydown',function(e){
+      if(e.key==='Backspace'&&!this.value&&i>0)document.getElementById(digits[i-1]).focus();
+      if(e.key==='Enter')document.getElementById('multi-join-btn').click();
+    });
+  });
+})();
+
+// ══════════════════════════════════════════════════
+// INPUT
+// ══════════════════════════════════════════════════
+function onTap(cx,cy){
+  resetIdle();
+  if(phase!=='playing'&&phase!=='multi-playing')return;
+  const id=hitTest(cx,cy);
+  if(id)selectArrow(id);
+}
+// ── INPUT: robust tap vs drag detection ──────────────
+let pDown=null,pMoved=false;
+canvas.addEventListener('pointerdown',e=>{
+  resetIdle(); // Fix: immediately stop auto-rotate on any press
+  pDown={x:e.clientX,y:e.clientY,id:e.pointerId};
+  pMoved=false;
+});
+canvas.addEventListener('pointermove',e=>{
+  if(pDown&&pDown.id===e.pointerId){
+    const dx=e.clientX-pDown.x,dy=e.clientY-pDown.y;
+    if(dx*dx+dy*dy>64)pMoved=true; // >8px = drag
+  }
+});
+canvas.addEventListener('pointerup',e=>{
+  if(!pDown||pDown.id!==e.pointerId)return;
+  const moved=pMoved;
+  pDown=null;pMoved=false;
+  if(moved)return; // drag → camera rotate, not a tap
+  onTap(e.clientX,e.clientY);
+});
+canvas.addEventListener('pointercancel',()=>{pDown=null;pMoved=false;});
+// Touch events removed — pointer events handle both mouse and touch on modern browsers.
+// (Keeping touchstart/touchend caused double-tap detection on mobile: both pointerup
+//  and touchend fired for the same finger tap, counting as two taps in <360ms.)
+
+// Buttons
+document.getElementById('btn-start').onclick=()=>openLevelSelect();
+document.getElementById('btn-cont').onclick=()=>loadLevel(progress);
+document.getElementById('btn-shop').onclick=()=>{phase='shop';showUI('shop');renderShopGrid();controls.autoRotate=true;};
+document.getElementById('btn-multi').onclick=()=>openMultiplayer();
+document.getElementById('launch-btn').onclick=()=>{if(selId){launchArrow(selId);resetIdle();}};
+document.getElementById('btn-next').onclick=()=>loadLevel(lvIdx+1);
+document.getElementById('btn-retry').onclick=()=>loadLevel(lvIdx);
+document.getElementById('btn-m1').onclick=()=>goMenu();
+document.getElementById('btn-m2').onclick=()=>goMenu();
+document.getElementById('shop-x').onclick=()=>goMenu();
+document.getElementById('coin-pill').onclick=()=>{if(phase==='menu'){phase='shop';showUI('shop');renderShopGrid();}};
+document.getElementById('exit-btn').onclick=()=>{
+  if(phase==='multi-playing'||phase==='multi-done'){closeMultiWs();}
+  goMenu();
+};
+document.getElementById('ls-back').onclick=()=>closeLevelSelect();
+document.getElementById('multi-join-btn').onclick=()=>joinMultiRoom();
+document.getElementById('multi-back-btn').onclick=()=>goMenu();
+document.getElementById('multi-lobby-back').onclick=()=>{closeMultiWs();goMenu();};
+document.getElementById('mr-menu').onclick=()=>{closeMultiWs();goMenu();};
+document.getElementById('mr-again').onclick=()=>{
+  multiSend({type:'again'});
+  startMultiCountdown();
+};
+
+function goMenu(){
+  phase='menu';clearPreview();
+  closeLevelSelect();
+  showUI('menu');
+  document.getElementById('multi-hud').classList.remove('on');
+  document.getElementById('multi-countdown').classList.remove('on');
+  document.getElementById('pbar').style.display='block';
+  controls.autoRotate=true;controls.autoRotateSpeed=1.3;
+  document.getElementById('btn-cont').style.display=progress>0?'flex':'none';
+  updateCoins();initDemo();
+}
+
+// ══════════════════════════════════════════════════
+// MAIN LOOP
+// ══════════════════════════════════════════════════
+const clk=new THREE.Clock();
+function loop(){
+  requestAnimationFrame(loop);
+  const dt=Math.min(clk.getDelta(),0.05);
+  if(shk>0){shk-=dt*3;const s=shk*0.07;camera.position.x+=(Math.random()-.5)*s;camera.position.y+=(Math.random()-.5)*s;}
+  if(phase==='menu'){tickDemo(dt);}
+  else if(phase==='playing'||phase==='multi-playing'){
+    if(opening){const el=Date.now()/1000-openT;let done=true;arrows.forEach(a=>{const t=(el-a.oDelay)/0.55;if(t<0){a.root.position.copy(a.oStart);done=false;}else if(t<1){const e=1-Math.pow(1-Math.min(t,1),3);a.root.position.lerpVectors(a.oStart,a.bp,e);done=false;}else{a.root.position.copy(a.bp);}});if(done)opening=false;}
+    else{arrows.forEach(a=>tickArrow(a,dt));}
+    tickIdle(dt);
+  }else if(phase==='win'||phase==='over'||phase==='multi-result'||phase==='multi-done'){arrows.forEach(a=>tickArrow(a,dt*0.35));}
+  controls.update();
+  renderer.render(scene,camera);
+}
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+loadSave();
+applyMap(activeMap);
+updateCoins();
+document.getElementById('btn-cont').style.display=progress>0?'flex':'none';
+document.getElementById('level-select').style.display='none';
+showUI('menu');
+initDemo();
+loop();
+</script>
+</body>
+</html>
